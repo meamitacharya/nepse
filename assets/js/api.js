@@ -13,27 +13,22 @@
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════
-// CONFIG — change these when you deploy your backend
+// CONFIG
 // ═══════════════════════════════════════════════════════════════
 const CONFIG = {
-  // Your local Python server (run: nepse-cli --start-server)
-  LOCAL_API: 'http://localhost:8000',
+  // !! REPLACE THIS with your Render.com URL after deploying backend !!
+  // Example: 'https://nepse-smart-api.onrender.com'
+  BACKEND_URL: 'https://nepse-smart-api.onrender.com',
 
-  // CORS proxies for direct scraping fallback
-  PROXIES: [
-    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  ],
-
-  // Data refresh interval during market hours (ms)
+  // Data refresh interval (ms)
   REFRESH_MS: 5 * 60 * 1000,  // 5 minutes
 
-  // Market hours (Nepal time, IST+15min)
-  MARKET_OPEN:  { h: 11, m: 0  },
-  MARKET_CLOSE: { h: 15, m: 0  },
+  // Market hours (Nepal time UTC+5:45)
+  MARKET_OPEN:  { h: 11, m: 0 },
+  MARKET_CLOSE: { h: 15, m: 0 },
 
-  // Demo mode — set false when live backend is available
-  DEMO_MODE: true,
+  // Set to false once your backend is deployed on Render
+  DEMO_MODE: false,
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -363,39 +358,115 @@ async function fetchMarketData() {
     return;
   }
 
-  // ── LIVE MODE (when backend is running) ──
+  // ── LIVE MODE — calls our FastAPI backend on Render ──
+  const base = CONFIG.BACKEND_URL;
   try {
-    const base = CONFIG.LOCAL_API;
-    const [priceRes, idxRes] = await Promise.all([
-      fetch(`${base}/api/nots/market/export/todays-price/1`),
-      fetch(`${base}/api/nots/market/indices`),
+    // Fetch stocks, indices, summary in parallel
+    const [stocksRes, idxRes, summaryRes] = await Promise.allSettled([
+      fetch(`${base}/api/stocks`,  { signal: AbortSignal.timeout(20000) }),
+      fetch(`${base}/api/indices`, { signal: AbortSignal.timeout(20000) }),
+      fetch(`${base}/api/summary`, { signal: AbortSignal.timeout(20000) }),
     ]);
-    const prices  = await priceRes.json();
-    const indices = await idxRes.json();
 
-    NEPSE.stocks = (prices.content || prices || []).map(r => ({
-      symbol:  r.stockSymbol || r.symbol,
-      name:    r.securityName || r.stockName,
-      sector:  r.businessType || r.sector || 'Other',
-      ltp:     parseFloat(r.closingPrice || r.ltp || 0),
-      open:    parseFloat(r.openPrice || r.open || 0),
-      high:    parseFloat(r.highPrice || r.high || 0),
-      low:     parseFloat(r.lowPrice  || r.low  || 0),
-      prev:    parseFloat(r.previousClosing || r.prevClose || 0),
-      vol:     parseInt(r.totalTradeQuantity || r.volume || 0),
-      to:      parseFloat(r.totalTradeValue || r.turnover || 0),
-      chg:     parseFloat(r.change || 0),
-      chgPct:  parseFloat(r.percentageChange || 0),
-      eps:     parseFloat(r.eps || 0),
-      pe:      parseFloat(r.peRatio || 0),
-      bv:      parseFloat(r.bookValue || 0),
-    }));
+    // ── Stocks ──
+    if (stocksRes.status === 'fulfilled' && stocksRes.value.ok) {
+      const json = await stocksRes.value.json();
+      // Backend already normalises the shape — just use it directly
+      NEPSE.stocks = json.data || [];
+      console.info(`[API] ✅ ${NEPSE.stocks.length} stocks loaded (${json.source})`);
+    } else {
+      console.warn('[API] Stocks fetch failed:', stocksRes.reason || stocksRes.value?.status);
+    }
+
+    // ── Indices ──
+    if (idxRes.status === 'fulfilled' && idxRes.value.ok) {
+      const json = await idxRes.value.json();
+      NEPSE.indices = json.data || {};
+    }
+
+    // ── Summary ──
+    if (summaryRes.status === 'fulfilled' && summaryRes.value.ok) {
+      const json = await summaryRes.value.json();
+      const s = json.data || {};
+      // Merge into indices object for compatibility with existing render code
+      NEPSE.indices.turnover  = s.turnover    || 0;
+      NEPSE.indices.txns      = s.transactions || 0;
+      NEPSE.indices.advances  = s.advances    || NEPSE.stocks.filter(x => x.chg > 0).length;
+      NEPSE.indices.declines  = s.declines    || NEPSE.stocks.filter(x => x.chg < 0).length;
+      NEPSE.indices.unchanged = s.unchanged   || NEPSE.stocks.filter(x => x.chg === 0).length;
+    } else {
+      // Compute breadth from stock data as fallback
+      NEPSE.indices.advances  = NEPSE.stocks.filter(x => x.chg > 0).length;
+      NEPSE.indices.declines  = NEPSE.stocks.filter(x => x.chg < 0).length;
+      NEPSE.indices.unchanged = NEPSE.stocks.filter(x => x.chg === 0).length;
+      NEPSE.indices.turnover  = NEPSE.stocks.reduce((s, x) => s + (x.to || 0), 0);
+    }
+
+    // ── Floorsheet / Broker data (fetch separately, non-blocking) ──
+    fetchFloorsheetBackground(base);
 
     NEPSE.lastUpdated = new Date();
     Bus.emit('data:updated', NEPSE);
+
   } catch (err) {
-    console.warn('[API] Live fetch failed, staying on last data:', err.message);
+    console.warn('[API] Live fetch error:', err.message);
+    // If we have any stocks from a previous fetch, still emit so UI doesn't freeze
+    if (NEPSE.stocks.length > 0) {
+      Bus.emit('data:updated', NEPSE);
+    }
     Bus.emit('data:error', err);
+  }
+}
+
+// ── Fetch floorsheet in background (slow, don't block UI) ──
+async function fetchFloorsheetBackground(base) {
+  try {
+    const res = await fetch(`${base}/api/floorsheet`, { signal: AbortSignal.timeout(60000) });
+    if (!res.ok) return;
+    const json = await res.json();
+    const rows = json.data || [];
+
+    // Aggregate into per-stock accumulation scores (same shape as DEMO_ACCUMULATION)
+    const byStock = {};
+    for (const row of rows) {
+      const sym = row.symbol;
+      if (!byStock[sym]) byStock[sym] = { symbol: sym, netUnits: 0, buyers: {}, sellers: {} };
+      byStock[sym].netUnits += row.netUnits;
+      if (row.netUnits > 0) {
+        byStock[sym].buyers[row.brokerId]  = (byStock[sym].buyers[row.brokerId]  || 0) + row.bought;
+      } else {
+        byStock[sym].sellers[row.brokerId] = (byStock[sym].sellers[row.brokerId] || 0) + row.sold;
+      }
+    }
+
+    NEPSE.brokerData = Object.values(byStock).map(s => {
+      const topBuyers  = Object.entries(s.buyers) .sort((a,b) => b[1]-a[1]).slice(0,3).map(([id]) => parseInt(id));
+      const topSellers = Object.entries(s.sellers).sort((a,b) => b[1]-a[1]).slice(0,3).map(([id]) => parseInt(id));
+      const absNet     = Math.abs(s.netUnits);
+
+      // Score: 0–100 based on net accumulation intensity
+      const stock   = NEPSE.stocks.find(x => x.symbol === s.symbol);
+      const avgVol  = stock ? (stock.vol || 1) : 1;
+      const score   = Math.min(100, Math.round((absNet / avgVol) * 100));
+      const trend   = s.netUnits > avgVol * 0.5 ? 'heavy_accum'
+                    : s.netUnits > 0             ? 'accumulating'
+                    : s.netUnits < -avgVol * 0.5 ? 'distribution'
+                    : s.netUnits < 0             ? 'distributing'
+                    : 'neutral';
+      const signal  = score >= 75 && trend.includes('accum') ? 'BURST_SOON'
+                    : score >= 55 && trend.includes('accum') ? 'WATCH'
+                    : trend.includes('distribut') && score >= 60 ? 'EXIT'
+                    : trend.includes('distribut') ? 'CAUTION'
+                    : 'NEUTRAL';
+
+      return { symbol: s.symbol, score, trend, topBuyers, topSellers, netUnits: s.netUnits, days: 1, signal };
+    });
+
+    console.info(`[API] ✅ Floorsheet processed: ${NEPSE.brokerData.length} stocks`);
+    // Re-emit so broker tracker updates
+    Bus.emit('data:updated', NEPSE);
+  } catch (e) {
+    console.warn('[API] Floorsheet background fetch failed:', e.message);
   }
 }
 
