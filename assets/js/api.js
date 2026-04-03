@@ -18,7 +18,7 @@
 const CONFIG = {
   // !! REPLACE THIS with your Render.com URL after deploying backend !!
   // Example: 'https://nepse-smart-api.onrender.com'
-  BACKEND_URL: 'https://nepse-smart-api.onrender.com',
+  BACKEND_URL: 'https://nepse-api-vgsd.onrender.com',
 
   // Data refresh interval (ms)
   REFRESH_MS: 5 * 60 * 1000,  // 5 minutes
