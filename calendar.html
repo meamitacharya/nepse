@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Bonus Calendar — NEPSE Smart</title>
+<link rel="stylesheet" href="assets/css/main.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <header class="topbar">
+    <div class="topbar-logo"><div class="logo-icon">NS</div><div class="logo-text">NEPSE<span>Smart</span></div></div>
+    <div class="topbar-ticker"><div class="ticker-inner" id="ticker-inner"><div class="ticker-item"><span class="ticker-sym">Loading…</span></div></div></div>
+    <div class="topbar-right">
+      <div class="market-status"><div class="status-dot" id="market-dot"></div><span id="market-text">…</span></div>
+      <div class="avatar">A</div>
+    </div>
+  </header>
+  <aside class="sidebar">
+    <nav>
+      <div class="nav-section">
+        <div class="nav-section-label">Market</div>
+        <a class="nav-item" href="index.html"><span class="nav-icon">📊</span> Dashboard</a>
+        <a class="nav-item" href="signals.html"><span class="nav-icon">🎯</span> Buy/Sell Signals</a>
+        <a class="nav-item" href="broker.html"><span class="nav-icon">🏦</span> Broker Tracker</a>
+        <a class="nav-item" href="sectors.html"><span class="nav-icon">🔄</span> Sector Rotation</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">My Money</div>
+        <a class="nav-item" href="portfolio.html"><span class="nav-icon">💼</span> My Portfolio</a>
+        <a class="nav-item" href="watchlist.html"><span class="nav-icon">👁️</span> Watchlist</a>
+        <a class="nav-item" href="alerts.html"><span class="nav-icon">🔔</span> Price Alerts</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" href="ipo.html"><span class="nav-icon">🚀</span> IPO Analyzer</a>
+        <a class="nav-item active" href="calendar.html"><span class="nav-icon">📅</span> Bonus Calendar</a>
+        <a class="nav-item" href="calculator.html"><span class="nav-icon">🧮</span> Return Calculator</a>
+        <a class="nav-item" href="chat.html"><span class="nav-icon">🤖</span> AI Chat</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Learn</div>
+        <a class="nav-item" href="weekly.html"><span class="nav-icon">📰</span> Weekly Briefing</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="upgrade-card"><p>🔔 Get book closure reminders before deadline</p><button class="btn-upgrade">Upgrade to Pro</button></div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div id="demo-disc"></div>
+    <div class="page-header">
+      <div>
+        <div class="page-title">Bonus & Dividend <span>Calendar</span></div>
+        <div class="page-sub">Upcoming book closures — don't miss eligibility deadlines</div>
+      </div>
+    </div>
+
+    <!-- Key Info -->
+    <div style="background:var(--yellow-bg);border:1px solid rgba(245,158,11,.3);border-radius:var(--r-lg);padding:16px;margin-bottom:24px;display:flex;gap:12px;align-items:flex-start">
+      <div style="font-size:24px">💡</div>
+      <div>
+        <div style="font-weight:700;margin-bottom:4px">You must hold shares BEFORE book closure to be eligible for bonus/dividend</div>
+        <div style="font-size:12.5px;color:var(--text2)">Settlement in NEPSE takes T+3 days. So if book closure is Baisakh 10, you must BUY the stock by Baisakh 7 at the latest. Prices usually spike before book closure — plan accordingly.</div>
+      </div>
+    </div>
+
+    <!-- Upcoming closures -->
+    <div style="font-size:16px;font-weight:700;margin-bottom:14px">🔥 Upcoming Book Closures (Next 30 Days)</div>
+    <div id="upcoming-closures" class="mb-24"></div>
+
+    <!-- Full Calendar Table -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">📅</span> Full Dividend / Bonus Calendar</div>
+        <select class="select" id="cal-type" onchange="renderCalendar()" style="padding:6px 12px;padding-right:28px">
+          <option value="">All Types</option>
+          <option value="Bonus">Bonus Shares</option>
+          <option value="Cash">Cash Dividend</option>
+          <option value="Rights">Rights Share</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Symbol</th><th>Company</th><th>Type</th>
+              <th class="num">Rate</th><th>Book Closure</th>
+              <th>Days Left</th><th>Status</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="cal-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+// Demo calendar data (in live: scrape from sharesansar.com/proposed-dividend)
+const CALENDAR_DATA = [
+  { symbol:'CBBL',  name:'Chhimek Bikas Bank',       type:'Bonus', rate:15,  bookClose:'2082-13-10', agm:'2083-01-15' },
+  { symbol:'NHPC',  name:'Nepal Hydro Power',         type:'Cash',  rate:10,  bookClose:'2082-13-15', agm:'2083-01-20' },
+  { symbol:'NABIL', name:'Nabil Bank',                type:'Bonus', rate:20,  bookClose:'2082-13-18', agm:'2083-01-22' },
+  { symbol:'UPPER', name:'Upper Tamakoshi Hydro',     type:'Bonus', rate:15,  bookClose:'2083-01-05', agm:'2083-01-25' },
+  { symbol:'JBLB',  name:'Jiban Bikas Laghubitta',   type:'Bonus', rate:25,  bookClose:'2083-01-10', agm:'2083-02-01' },
+  { symbol:'RNLI',  name:'Rastriya Beema Ltd',        type:'Cash',  rate:25,  bookClose:'2083-01-14', agm:'2083-02-05' },
+  { symbol:'CHCL',  name:'Chilime Hydro Power',       type:'Bonus', rate:20,  bookClose:'2083-01-18', agm:'2083-02-08' },
+  { symbol:'NTC',   name:'Nepal Telecom',             type:'Cash',  rate:65,  bookClose:'2083-01-22', agm:'2083-02-12' },
+  { symbol:'NLIC',  name:'Nepal Life Insurance',      type:'Bonus', rate:30,  bookClose:'2083-02-01', agm:'2083-02-20' },
+  { symbol:'GHL',   name:'Garima Hydropower',         type:'Bonus', rate:12,  bookClose:'2083-02-10', agm:'2083-03-01' },
+  { symbol:'ALBSL', name:'Agrawal Laghubitta',        type:'Bonus', rate:18,  bookClose:'2083-02-15', agm:'2083-03-05' },
+  { symbol:'PRVU',  name:'Prabhu Bank',               type:'Cash',  rate:10,  bookClose:'2083-02-20', agm:'2083-03-10' },
+  { symbol:'SSHL',  name:'Solu Small Hydro',          type:'Rights',rate:1,   bookClose:'2083-03-01', agm:'2083-03-20' },
+  { symbol:'KKHC',  name:'Kulekhani Khimti Hydro',   type:'Bonus', rate:8,   bookClose:'2083-03-10', agm:'2083-04-01' },
+  { symbol:'ADBL',  name:'Agriculture Dev. Bank',     type:'Cash',  rate:15,  bookClose:'2083-03-15', agm:'2083-04-05' },
+];
+
+// Compute days left (using fixed reference — in real app use actual date diff)
+function getDaysLeft(dateStr) {
+  const parts = dateStr.split('-').map(Number);
+  // Rough Nepali-to-Gregorian approximation for demo purposes
+  const daysMap = { '2082-13-10':5,'2082-13-15':10,'2082-13-18':13,'2083-01-05':18,'2083-01-10':23,
+    '2083-01-14':27,'2083-01-18':31,'2083-01-22':35,'2083-02-01':44,'2083-02-10':53,
+    '2083-02-15':58,'2083-02-20':63,'2083-03-01':72,'2083-03-10':81,'2083-03-15':86 };
+  return daysMap[dateStr] || 90;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('demo-disc').innerHTML = UI.demoDisclaimer();
+  await API.init();
+  API.Bus.on('data:updated', d => { UI.updateTicker(d.stocks); UI.updateMarketStatusBar(d.isMarketOpen); });
+  renderUpcoming();
+  renderCalendar();
+});
+
+function renderUpcoming() {
+  const urgent = CALENDAR_DATA.filter(d => getDaysLeft(d.bookClose) <= 30).sort((a,b) => getDaysLeft(a.bookClose) - getDaysLeft(b.bookClose));
+  document.getElementById('upcoming-closures').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">
+      ${urgent.map(d => {
+        const days = getDaysLeft(d.bookClose);
+        const urgency = days <= 7 ? 'var(--red)' : days <= 14 ? 'var(--yellow)' : 'var(--green)';
+        const typeMap = { Bonus:'🎁', Cash:'💵', Rights:'📜' };
+        const s = NEPSE.stocks.find(x => x.symbol === d.symbol) || {};
+        return `
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;
+            border-left:3px solid ${urgency}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+              <div>
+                <div style="font-weight:700;color:var(--primary)">${d.symbol}</div>
+                <div style="font-size:11px;color:var(--text3)">${d.name}</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:18px">${typeMap[d.type]}</div>
+                <div style="font-size:11px;font-weight:700;color:${urgency}">${days}d left</div>
+              </div>
+            </div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px">
+              ${d.type} Share: <span style="color:${urgency}">${d.rate}${d.type==='Cash'?'% Cash':'% Bonus'}</span>
+            </div>
+            <div style="font-size:11px;color:var(--text3)">Book Closure: ${d.bookClose}</div>
+            ${s.ltp ? `<div style="font-size:11px;color:var(--text2);margin-top:4px">Current: Rs. ${API.Utils.fmt(s.ltp)}</div>` : ''}
+            <div style="margin-top:8px">
+              <button class="btn btn-xs btn-ghost" onclick="UI.addToWatchlist('${d.symbol}')">+ Watchlist</button>
+              <button class="btn btn-xs btn-ghost" style="margin-left:4px" onclick="openAlertModal('${d.symbol}')">🔔 Alert</button>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderCalendar() {
+  const typeFilter = document.getElementById('cal-type').value;
+  const data = typeFilter ? CALENDAR_DATA.filter(d => d.type === typeFilter) : CALENDAR_DATA;
+  const sorted = [...data].sort((a,b) => getDaysLeft(a.bookClose) - getDaysLeft(b.bookClose));
+  const typeIcons = { Bonus:'🎁', Cash:'💵', Rights:'📜' };
+  document.getElementById('cal-tbody').innerHTML = sorted.map(d => {
+    const days = getDaysLeft(d.bookClose);
+    const urgency = days <= 7 ? 'var(--red)' : days <= 14 ? 'var(--yellow)' : 'var(--text2)';
+    const s = NEPSE.stocks.find(x => x.symbol === d.symbol) || {};
+    return `
+      <tr onclick="UI.showStockModal('${d.symbol}')" style="cursor:pointer">
+        <td class="td-symbol">${d.symbol}</td>
+        <td class="td-name">${d.name}</td>
+        <td><span class="chip">${typeIcons[d.type]} ${d.type}</span></td>
+        <td class="num" style="color:var(--green);font-weight:600">${d.rate}${d.type==='Cash'?'% Cash':'% Bonus'}</td>
+        <td style="font-size:12px">${d.bookClose}</td>
+        <td><span style="font-weight:700;color:${urgency}">${days} days</span></td>
+        <td>
+          <span style="font-size:11px;background:${days<=14?'var(--yellow-bg)':'var(--green-bg)'};
+            color:${days<=14?'var(--yellow)':'var(--green)'};padding:2px 7px;border-radius:99px;font-weight:700">
+            ${days<=7?'URGENT':days<=14?'SOON':'UPCOMING'}
+          </span>
+        </td>
+        <td onclick="event.stopPropagation()">
+          <button class="btn btn-xs btn-ghost" onclick="UI.addToWatchlist('${d.symbol}')">+ Watch</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+</script>
+</body>
+</html>

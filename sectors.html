@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Sector Rotation — NEPSE Smart</title>
+<link rel="stylesheet" href="assets/css/main.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <header class="topbar">
+    <div class="topbar-logo"><div class="logo-icon">NS</div><div class="logo-text">NEPSE<span>Smart</span></div></div>
+    <div class="topbar-ticker"><div class="ticker-inner" id="ticker-inner"><div class="ticker-item"><span class="ticker-sym">Loading…</span></div></div></div>
+    <div class="topbar-right">
+      <div class="market-status"><div class="status-dot" id="market-dot"></div><span id="market-text">…</span></div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-data)" id="last-updated">—</div>
+      <div class="avatar">A</div>
+    </div>
+  </header>
+  <aside class="sidebar">
+    <nav>
+      <div class="nav-section">
+        <div class="nav-section-label">Market</div>
+        <a class="nav-item" href="index.html"><span class="nav-icon">📊</span> Dashboard</a>
+        <a class="nav-item" href="signals.html"><span class="nav-icon">🎯</span> Buy/Sell Signals</a>
+        <a class="nav-item" href="broker.html"><span class="nav-icon">🏦</span> Broker Tracker</a>
+        <a class="nav-item active" href="sectors.html"><span class="nav-icon">🔄</span> Sector Rotation</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">My Money</div>
+        <a class="nav-item" href="portfolio.html"><span class="nav-icon">💼</span> My Portfolio</a>
+        <a class="nav-item" href="watchlist.html"><span class="nav-icon">👁️</span> Watchlist</a>
+        <a class="nav-item" href="alerts.html"><span class="nav-icon">🔔</span> Price Alerts</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" href="ipo.html"><span class="nav-icon">🚀</span> IPO Analyzer</a>
+        <a class="nav-item" href="calendar.html"><span class="nav-icon">📅</span> Bonus Calendar</a>
+        <a class="nav-item" href="calculator.html"><span class="nav-icon">🧮</span> Return Calculator</a>
+        <a class="nav-item" href="chat.html"><span class="nav-icon">🤖</span> AI Chat</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Learn</div>
+        <a class="nav-item" href="weekly.html"><span class="nav-icon">📰</span> Weekly Briefing</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="upgrade-card"><p>🔓 Get sector rotation alerts before the crowd</p><button class="btn-upgrade">Upgrade to Pro</button></div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div id="demo-disc"></div>
+    <div class="page-header">
+      <div>
+        <div class="page-title">Sector <span>Rotation</span></div>
+        <div class="page-sub">See where money is moving — ride the right wave</div>
+      </div>
+    </div>
+
+    <!-- Key Insight -->
+    <div style="background:linear-gradient(135deg,rgba(59,130,246,.1),rgba(16,185,129,.1));border:1px solid rgba(59,130,246,.2);border-radius:var(--r-lg);padding:18px;margin-bottom:24px">
+      <div style="font-weight:700;font-size:15px;margin-bottom:6px">💡 Why Sector Rotation Matters</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6">
+        Smart investors don't just pick stocks — they pick the <strong>right sector at the right time</strong>.
+        When government announces hydropower projects → hydropower stocks move first.
+        When interest rates drop → banking stocks move. Follow the money, not the news.
+      </div>
+    </div>
+
+    <!-- Sector Heat Cards -->
+    <div class="grid-auto mb-24" id="sector-cards"></div>
+
+    <!-- Sector Details Table -->
+    <div class="card mb-24">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">📊</span> Sector Performance Breakdown</div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Sector</th>
+              <th class="num">Stocks</th>
+              <th class="num">Avg Change %</th>
+              <th class="num">Advances</th>
+              <th class="num">Declines</th>
+              <th class="num">Total Turnover</th>
+              <th>Momentum</th>
+              <th>Top Stock Today</th>
+            </tr>
+          </thead>
+          <tbody id="sector-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Stocks by Sector -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">🔍</span> Stocks by Sector</div>
+        <select class="select" id="sec-pick" onchange="renderSectorStocks()" style="padding:6px 12px;padding-right:28px">
+          <option value="">Select a sector…</option>
+        </select>
+      </div>
+      <div id="sector-stocks-table"></div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('demo-disc').innerHTML = UI.demoDisclaimer();
+  await API.init();
+  API.Bus.on('data:updated', render);
+});
+
+function render(data) {
+  UI.updateTicker(data.stocks);
+  UI.updateMarketStatusBar(data.isMarketOpen);
+  UI.updateTimestamp();
+  const sectors = API.analyzeSectorRotation(data.stocks);
+  renderSectorCards(sectors);
+  renderSectorTable(sectors, data.stocks);
+  populateSectorPicker(sectors);
+}
+
+function renderSectorCards(sectors) {
+  const momentumConfig = {
+    HOT:      { icon:'🔥', bg:'var(--green-bg)',   border:'rgba(16,185,129,.3)',  label:'HOT',      color:'var(--green)'  },
+    POSITIVE: { icon:'📈', bg:'rgba(16,185,129,.05)',border:'var(--border)',      label:'POSITIVE', color:'var(--green)'  },
+    NEUTRAL:  { icon:'➡️', bg:'var(--surface)',    border:'var(--border)',        label:'NEUTRAL',  color:'var(--text3)'  },
+    COLD:     { icon:'❄️', bg:'var(--red-bg)',     border:'rgba(239,68,68,.25)',  label:'COLD',     color:'var(--red)'    },
+  };
+  document.getElementById('sector-cards').innerHTML = sectors.map(sec => {
+    const m = momentumConfig[sec.momentum] || momentumConfig.NEUTRAL;
+    return `
+      <div style="background:${m.bg};border:1px solid ${m.border};border-radius:var(--r-lg);padding:16px;cursor:pointer;transition:.2s"
+        onclick="document.getElementById('sec-pick').value='${sec.name}';renderSectorStocks()">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:20px">${m.icon}</div>
+          <span style="font-size:11px;font-weight:700;color:${m.color};background:rgba(0,0,0,.2);padding:2px 7px;border-radius:99px">${m.label}</span>
+        </div>
+        <div style="font-weight:700;font-size:14px;margin-bottom:2px">${sec.name}</div>
+        <div style="font-family:var(--font-data);font-size:22px;font-weight:500;color:${sec.avgChg>=0?'var(--green)':'var(--red)'};margin-bottom:4px">
+          ${sec.avgChg>=0?'+':''}${API.Utils.fmt(sec.avgChg)}%
+        </div>
+        <div style="font-size:11px;color:var(--text3)">${sec.stocks} stocks · ${API.Utils.fmtCr(sec.totalTo)} traded</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${sec.advances} up · ${sec.declines} down</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderSectorTable(sectors, stocks) {
+  document.getElementById('sector-tbody').innerHTML = sectors.map(sec => {
+    const topStock = stocks
+      .filter(s => s.sector === sec.name)
+      .sort((a,b) => Math.abs(b.chgPct) - Math.abs(a.chgPct))[0];
+    const momColor = { HOT:'var(--green)', POSITIVE:'var(--green)', NEUTRAL:'var(--text3)', COLD:'var(--red)' };
+    return `
+      <tr>
+        <td style="font-weight:600">${sec.name}</td>
+        <td class="num">${sec.stocks}</td>
+        <td class="num ${sec.avgChg>=0?'up':'dn'}">${sec.avgChg>=0?'+':''}${API.Utils.fmt(sec.avgChg)}%</td>
+        <td class="num up">${sec.advances}</td>
+        <td class="num dn">${sec.declines}</td>
+        <td class="num">${API.Utils.fmtCr(sec.totalTo)}</td>
+        <td>
+          <span style="font-weight:700;font-size:12px;color:${momColor[sec.momentum]}">${sec.momentum}</span>
+        </td>
+        <td>
+          ${topStock ? `<span class="td-symbol" onclick="UI.showStockModal('${topStock.symbol}')" style="cursor:pointer">${topStock.symbol}</span>
+          <span class="${topStock.chg>=0?'up':'dn'}" style="font-size:12px;margin-left:6px">${topStock.chgPct>=0?'+':''}${API.Utils.fmt(topStock.chgPct)}%</span>` : '—'}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function populateSectorPicker(sectors) {
+  const sel = document.getElementById('sec-pick');
+  if (sel.options.length > 1) return;
+  sectors.forEach(s => {
+    const o = document.createElement('option'); o.value = s.name; o.textContent = s.name;
+    sel.appendChild(o);
+  });
+}
+
+function renderSectorStocks() {
+  const sec = document.getElementById('sec-pick').value;
+  if (!sec) return;
+  const stocks = NEPSE.stocks.filter(s => s.sector === sec);
+  const el = document.getElementById('sector-stocks-table');
+  if (!stocks.length) { el.innerHTML = '<div class="empty-state"><p>No stocks found</p></div>'; return; }
+  el.innerHTML = `
+    <div class="table-wrap" style="margin-top:12px">
+      <table class="data-table">
+        <thead><tr>
+          <th>Symbol</th><th>Company</th>
+          <th class="num">LTP</th><th class="num">Change %</th>
+          <th class="num">Volume</th><th class="num">Turnover</th>
+          <th>Signal</th>
+        </tr></thead>
+        <tbody>
+          ${stocks.sort((a,b)=>b.to-a.to).map(s => {
+            const sig = API.generateSignal(s, NEPSE.brokerData.find(b=>b.symbol===s.symbol));
+            return `
+              <tr onclick="UI.showStockModal('${s.symbol}')" style="cursor:pointer">
+                <td class="td-symbol">${s.symbol}</td>
+                <td class="td-name">${s.name}</td>
+                <td class="num">${API.Utils.fmt(s.ltp)}</td>
+                <td class="num ${API.Utils.clsName(s.chgPct)}">${s.chgPct>=0?'+':''}${API.Utils.fmt(s.chgPct)}%</td>
+                <td class="num">${API.Utils.fmtI(s.vol)}</td>
+                <td class="num">${API.Utils.fmtCr(s.to)}</td>
+                <td>${UI.signalBadge(sig.signal)}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>

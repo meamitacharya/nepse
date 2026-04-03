@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Broker Tracker — NEPSE Smart</title>
+<link rel="stylesheet" href="assets/css/main.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <header class="topbar">
+    <div class="topbar-logo"><div class="logo-icon">NS</div><div class="logo-text">NEPSE<span>Smart</span></div></div>
+    <div class="topbar-ticker"><div class="ticker-inner" id="ticker-inner"><div class="ticker-item"><span class="ticker-sym">Loading…</span></div></div></div>
+    <div class="topbar-right">
+      <div class="market-status"><div class="status-dot" id="market-dot"></div><span id="market-text">…</span></div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-data)" id="last-updated">—</div>
+      <div class="avatar">A</div>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <nav>
+      <div class="nav-section">
+        <div class="nav-section-label">Market</div>
+        <a class="nav-item" href="index.html"><span class="nav-icon">📊</span> Dashboard</a>
+        <a class="nav-item" href="signals.html"><span class="nav-icon">🎯</span> Buy/Sell Signals</a>
+        <a class="nav-item active" href="broker.html"><span class="nav-icon">🏦</span> Broker Tracker</a>
+        <a class="nav-item" href="sectors.html"><span class="nav-icon">🔄</span> Sector Rotation</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">My Money</div>
+        <a class="nav-item" href="portfolio.html"><span class="nav-icon">💼</span> My Portfolio</a>
+        <a class="nav-item" href="watchlist.html"><span class="nav-icon">👁️</span> Watchlist</a>
+        <a class="nav-item" href="alerts.html"><span class="nav-icon">🔔</span> Price Alerts</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" href="ipo.html"><span class="nav-icon">🚀</span> IPO Analyzer</a>
+        <a class="nav-item" href="calendar.html"><span class="nav-icon">📅</span> Bonus Calendar</a>
+        <a class="nav-item" href="calculator.html"><span class="nav-icon">🧮</span> Return Calculator</a>
+        <a class="nav-item" href="chat.html"><span class="nav-icon">🤖</span> AI Chat</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="upgrade-card"><p>🔔 Get instant broker alerts to your phone</p><button class="btn-upgrade">Upgrade to Pro</button></div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div id="demo-disc"></div>
+
+    <div class="page-header">
+      <div>
+        <div class="page-title">Broker <span>Accumulation Tracker</span></div>
+        <div class="page-sub">Track where smart money (institutional brokers) is flowing</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div style="background:var(--blue-bg);border:1px solid rgba(59,130,246,.3);border-radius:var(--r-md);padding:8px 14px;font-size:12px;color:var(--blue)">
+          📊 Based on floorsheet analysis — last 10 trading days
+        </div>
+      </div>
+    </div>
+
+    <!-- Explainer -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;margin-bottom:24px">
+      <div style="font-weight:600;margin-bottom:8px;font-size:14px">🧠 How This Works</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;font-size:12.5px;color:var(--text2)">
+        <div><strong style="color:var(--green)">Smart Money = Big Brokers</strong><br>Institutional investors use specific brokers (42, 58, etc.) consistently. When these brokers buy the same stock repeatedly, a breakout is coming.</div>
+        <div><strong style="color:var(--yellow)">Accumulation Score 0–100</strong><br>70+ = Heavy buying detected. Price usually moves 15–25% within 2–6 weeks. This is your early signal before retail investors notice.</div>
+        <div><strong style="color:var(--red)">Distribution = Exit Signal</strong><br>When the same smart money brokers start selling, they're exiting positions. Retail investors often buy this dip — don't be that person.</div>
+      </div>
+    </div>
+
+    <!-- Burst Candidates -->
+    <div class="mb-24">
+      <div style="font-size:16px;font-weight:700;margin-bottom:14px">💥 Breakout Candidates — Smart Money Loading</div>
+      <div class="grid-2" id="burst-cards"></div>
+    </div>
+
+    <!-- Exit Signals -->
+    <div class="mb-24">
+      <div style="font-size:16px;font-weight:700;margin-bottom:14px;color:var(--red)">⚠️ Exit Signals — Smart Money Leaving</div>
+      <div id="exit-cards"></div>
+    </div>
+
+    <!-- Full Accumulation Table -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">📊</span> All Tracked Stocks — Broker Activity</div>
+        <div style="display:flex;gap:8px">
+          <select class="select" id="trend-filter" onchange="renderBrokerTable()" style="padding:6px 12px;padding-right:28px">
+            <option value="">All</option>
+            <option value="accumulating">Accumulating</option>
+            <option value="heavy_accum">Heavy Accumulation</option>
+            <option value="distributing">Distributing</option>
+            <option value="distribution">Heavy Distribution</option>
+            <option value="neutral">Neutral</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="broker-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th class="num">LTP</th>
+              <th class="num">Change</th>
+              <th>Accumulation Score</th>
+              <th>Trend</th>
+              <th>Top Buyers (Smart $)</th>
+              <th>Top Sellers</th>
+              <th class="num">Net Units (10D)</th>
+              <th class="num">Days Active</th>
+              <th>Outlook</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="broker-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('demo-disc').innerHTML = UI.demoDisclaimer();
+  await API.init();
+  API.Bus.on('data:updated', render);
+});
+
+function render(data) {
+  UI.updateTicker(data.stocks);
+  UI.updateMarketStatusBar(data.isMarketOpen);
+  UI.updateTimestamp();
+  renderBurstCards(data.stocks, data.brokerData);
+  renderExitCards(data.stocks, data.brokerData);
+  renderBrokerTable();
+}
+
+function renderBurstCards(stocks, accData) {
+  const bursts = API.detectBurstCandidates(stocks, accData);
+  document.getElementById('burst-cards').innerHTML = bursts.map(b => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;
+      cursor:pointer;transition:.2s;border-left:3px solid var(--green)"
+      onclick="UI.showStockModal('${b.symbol}')"
+      onmouseenter="this.style.borderColor='var(--green)'"
+      onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px">
+          ${UI.renderScoreRing(b.score, 52)}
+          <div>
+            <div style="font-size:17px;font-weight:700;color:var(--primary)">${b.symbol}</div>
+            <div style="font-size:11px;color:var(--text3)">${b.stock?.name || ''}</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:var(--font-data);font-size:18px;font-weight:500">Rs. ${API.Utils.fmt(b.stock?.ltp)}</div>
+          <div class="${API.Utils.clsName(b.stock?.chg)}" style="font-size:12px;text-align:right">
+            ${b.stock?.chg>=0?'+':''}${API.Utils.fmt(b.stock?.chgPct)}%
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">
+        🏦 <strong>Smart money:</strong> Broker ${b.topBuyers.join(', ')} accumulating for <strong>${b.days} consecutive days</strong>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:12px">
+          <span style="color:var(--text3)">Net accumulated: </span>
+          <span style="color:var(--green);font-weight:600">+${API.Utils.fmtI(b.netUnits)} units</span>
+        </div>
+        <div>
+          <span style="font-size:11px;background:${b.confidence==='HIGH'?'var(--green-bg)':'var(--yellow-bg)'};
+            color:${b.confidence==='HIGH'?'var(--green)':'var(--yellow)'};
+            padding:3px 8px;border-radius:99px;font-weight:700">
+            ${b.confidence} CONFIDENCE
+          </span>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px">
+        <div>🎯 Target: <strong class="up">Rs. ${b.priceTarget}</strong></div>
+        <div>⏱ Est. breakout: <strong>~${b.daysToBreak} days</strong></div>
+      </div>
+    </div>
+  `).join('') || `<div class="empty-state"><div class="icon">🔍</div><p>No breakout candidates detected today</p></div>`;
+}
+
+function renderExitCards(stocks, accData) {
+  const exits = accData
+    .filter(a => a.signal === 'EXIT' || (a.trend === 'distribution' || a.trend === 'distributing'))
+    .map(a => ({ ...a, stock: stocks.find(s => s.symbol === a.symbol) }))
+    .filter(a => a.stock);
+
+  document.getElementById('exit-cards').innerHTML = exits.map(e => `
+    <div style="background:var(--red-bg);border:1px solid rgba(239,68,68,.2);border-radius:var(--r-lg);padding:14px;
+      margin-bottom:10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between"
+      onclick="UI.showStockModal('${e.symbol}')">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:24px">⚠️</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--red)">${e.symbol}
+            <span style="font-size:12px;font-weight:400;color:var(--text2)"> — ${e.stock?.name || ''}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text2)">
+            Broker ${e.topSellers.join(', ')} selling heavily · ${e.days} days distribution
+          </div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--font-data);font-size:16px">Rs. ${API.Utils.fmt(e.stock?.ltp)}</div>
+        <div style="font-size:12px;color:var(--red);font-weight:600">
+          Net: −${API.Utils.fmtI(Math.abs(e.netUnits))} units sold
+        </div>
+      </div>
+    </div>
+  `).join('') || `<div style="font-size:13px;color:var(--text3);padding:12px">No major exit signals detected ✅</div>`;
+}
+
+function renderBrokerTable() {
+  const trendFilter = document.getElementById('trend-filter').value;
+  let data = NEPSE.brokerData.filter(a => !trendFilter || a.trend === trendFilter);
+  const stocks = NEPSE.stocks;
+  document.getElementById('broker-tbody').innerHTML = data.map(acc => {
+    const s = stocks.find(s => s.symbol === acc.symbol);
+    if (!s) return '';
+    const cls = API.Utils.clsName(s.chg);
+    const trendColors = {
+      heavy_accum:  { bg:'var(--green-bg)',   text:'var(--green)',  label:'HEAVY ACCUM' },
+      accumulating: { bg:'rgba(16,185,129,.06)',text:'var(--green)',label:'ACCUMULATING' },
+      neutral:      { bg:'var(--surface3)',    text:'var(--text3)',  label:'NEUTRAL'     },
+      distributing: { bg:'var(--yellow-bg)',   text:'var(--yellow)',label:'DISTRIBUTING' },
+      distribution: { bg:'var(--red-bg)',      text:'var(--red)',   label:'DISTRIBUTION' },
+    };
+    const tc = trendColors[acc.trend] || trendColors.neutral;
+    const outlookMap = {
+      BURST_SOON: `<span style="background:var(--green-bg);color:var(--green);padding:3px 8px;border-radius:99px;font-size:11px;font-weight:700">💥 BURST SOON</span>`,
+      WATCH:      `<span style="background:var(--blue-bg);color:var(--blue);padding:3px 8px;border-radius:99px;font-size:11px;font-weight:700">👁 WATCH</span>`,
+      CAUTION:    `<span style="background:var(--yellow-bg);color:var(--yellow);padding:3px 8px;border-radius:99px;font-size:11px;font-weight:700">⚠️ CAUTION</span>`,
+      EXIT:       `<span style="background:var(--red-bg);color:var(--red);padding:3px 8px;border-radius:99px;font-size:11px;font-weight:700">🚨 EXIT</span>`,
+      NEUTRAL:    `<span style="background:var(--surface3);color:var(--text3);padding:3px 8px;border-radius:99px;font-size:11px;font-weight:700">NEUTRAL</span>`,
+    };
+    return `
+      <tr onclick="UI.showStockModal('${acc.symbol}')" style="cursor:pointer">
+        <td class="td-symbol">${acc.symbol}</td>
+        <td class="num">${API.Utils.fmt(s.ltp)}</td>
+        <td class="num">
+          <div class="change-cell ${cls}">${API.Utils.arrow(s.chg)} ${API.Utils.fmt(Math.abs(s.chg))} (${s.chg>=0?'+':''}${API.Utils.fmt(s.chgPct)}%)</div>
+        </td>
+        <td>${UI.accumulationBar(acc.score)}</td>
+        <td>
+          <span style="background:${tc.bg};color:${tc.text};padding:3px 8px;border-radius:99px;font-size:11px;font-weight:700">${tc.label}</span>
+        </td>
+        <td style="font-size:12px;color:var(--green)">Broker ${acc.topBuyers.join(', ')}</td>
+        <td style="font-size:12px;color:var(--red)">Broker ${acc.topSellers.join(', ')}</td>
+        <td class="num ${acc.netUnits>=0?'up':'dn'}">${acc.netUnits>=0?'+':''}${API.Utils.fmtI(acc.netUnits)}</td>
+        <td class="num">${acc.days}</td>
+        <td>${outlookMap[acc.signal] || outlookMap.NEUTRAL}</td>
+        <td onclick="event.stopPropagation()">
+          <button class="btn btn-xs btn-ghost" onclick="UI.addToWatchlist('${acc.symbol}')">Watch</button>
+        </td>
+      </tr>
+    `;
+  }).join('') || `<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text3)">No data for this filter</td></tr>`;
+}
+</script>
+</body>
+</html>

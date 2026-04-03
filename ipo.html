@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>IPO Analyzer — NEPSE Smart</title>
+<link rel="stylesheet" href="assets/css/main.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <header class="topbar">
+    <div class="topbar-logo"><div class="logo-icon">NS</div><div class="logo-text">NEPSE<span>Smart</span></div></div>
+    <div class="topbar-ticker"><div class="ticker-inner" id="ticker-inner"><div class="ticker-item"><span class="ticker-sym">Loading…</span></div></div></div>
+    <div class="topbar-right">
+      <div class="market-status"><div class="status-dot" id="market-dot"></div><span id="market-text">…</span></div>
+      <div class="avatar">A</div>
+    </div>
+  </header>
+  <aside class="sidebar">
+    <nav>
+      <div class="nav-section">
+        <div class="nav-section-label">Market</div>
+        <a class="nav-item" href="index.html"><span class="nav-icon">📊</span> Dashboard</a>
+        <a class="nav-item" href="signals.html"><span class="nav-icon">🎯</span> Buy/Sell Signals</a>
+        <a class="nav-item" href="broker.html"><span class="nav-icon">🏦</span> Broker Tracker</a>
+        <a class="nav-item" href="sectors.html"><span class="nav-icon">🔄</span> Sector Rotation</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">My Money</div>
+        <a class="nav-item" href="portfolio.html"><span class="nav-icon">💼</span> My Portfolio</a>
+        <a class="nav-item" href="watchlist.html"><span class="nav-icon">👁️</span> Watchlist</a>
+        <a class="nav-item" href="alerts.html"><span class="nav-icon">🔔</span> Price Alerts</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item active" href="ipo.html"><span class="nav-icon">🚀</span> IPO Analyzer</a>
+        <a class="nav-item" href="calendar.html"><span class="nav-icon">📅</span> Bonus Calendar</a>
+        <a class="nav-item" href="calculator.html"><span class="nav-icon">🧮</span> Return Calculator</a>
+        <a class="nav-item" href="chat.html"><span class="nav-icon">🤖</span> AI Chat</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Learn</div>
+        <a class="nav-item" href="weekly.html"><span class="nav-icon">📰</span> Weekly Briefing</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="upgrade-card"><p>🔓 Get IPO allotment notifications instantly</p><button class="btn-upgrade">Upgrade to Pro</button></div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div id="demo-disc"></div>
+    <div class="page-header">
+      <div>
+        <div class="page-title">IPO <span>Analyzer</span></div>
+        <div class="page-sub">Should you apply? Expected listing range and analysis</div>
+      </div>
+    </div>
+
+    <!-- IPO Guide -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;margin-bottom:24px">
+      <div style="font-weight:700;margin-bottom:12px">📘 How to Use This Analyzer</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:12.5px;color:var(--text2)">
+        <div><strong style="color:var(--green)">✅ Apply IPO If:</strong><br>Hydropower / Good sector · Issue manager track record · EPS > 10 · Company profitable · Oversubscription > 5x expected</div>
+        <div><strong style="color:var(--red)">❌ Skip IPO If:</strong><br>Unknown sector · Loss-making company · No dividend history · Issue size too large · Promoter credibility unclear</div>
+        <div><strong style="color:var(--yellow)">💡 NEPSE IPO Tips:</strong><br>Allotment is lottery-based. Apply from 10 Demat accounts (family/friends) to increase chances. Hydro IPOs historically list 30–80% premium.</div>
+      </div>
+    </div>
+
+    <!-- Current IPOs (Demo data — will be scraped from NEPSE/sharesansar when live) -->
+    <div style="font-size:16px;font-weight:700;margin-bottom:14px">🔴 Currently Open IPOs</div>
+    <div class="grid-2 mb-24" id="open-ipos"></div>
+
+    <div style="font-size:16px;font-weight:700;margin-bottom:14px">🟡 Upcoming IPOs</div>
+    <div class="grid-2 mb-24" id="upcoming-ipos"></div>
+
+    <div style="font-size:16px;font-weight:700;margin-bottom:14px">✅ Recently Listed — Performance</div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Company</th><th>Sector</th><th class="num">Issue Price</th>
+              <th class="num">Listing Price</th><th class="num">Premium %</th>
+              <th class="num">Current Price</th><th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody id="listed-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+// Demo IPO data (in live mode, scrape from nepseipo.com or sharesansar)
+const DEMO_OPEN_IPOS = [
+  {
+    name: 'Appolo Hydropower Limited',
+    symbol: 'AHPL', sector: 'Hydropower', units: 780200,
+    issuePrice: 100, openDate: '2082-12-26', closeDate: '2082-12-30',
+    eps: 8.5, pe: 11.8, bv: 112,
+    issueManager: 'NIBL Ace Capital', promoterShare: 60,
+    verdict: 'APPLY', score: 78,
+    reason: 'Hydro sector momentum strong. RSP government 30,000 MW target = tailwind. Conservative PE at IPO price. Issue manager track record good.',
+    expectedListingRange: 'Rs. 135–175',
+    expectedPremium: '35–75%',
+  },
+];
+
+const DEMO_UPCOMING_IPOS = [
+  {
+    name: 'Kalinchowk Hydropower Limited',
+    symbol: 'KHL', sector: 'Hydropower', units: 684750,
+    issuePrice: 100, openDate: '2082-12-22', closeDate: '2082-12-26',
+    eps: 7.2, pe: 13.9, bv: 105,
+    issueManager: 'Machhapuchchhre Capital', promoterShare: 51,
+    verdict: 'APPLY', score: 72,
+    reason: 'Good hydro project with steady revenue. Lower eps than peers but stable. Apply for listing gains.',
+    expectedListingRange: 'Rs. 120–155',
+    expectedPremium: '20–55%',
+  },
+  {
+    name: 'Nepal Ceramic Limited',
+    symbol: 'NCL', sector: 'Manufacturing', units: 1500000,
+    issuePrice: 100, openDate: '2083-01-05', closeDate: '2083-01-09',
+    eps: 5.1, pe: 19.6, bv: 88,
+    issueManager: 'Machhapuchchhre Capital', promoterShare: 55,
+    verdict: 'SKIP', score: 38,
+    reason: 'Manufacturing sector not in favor. Low EPS. Issue size large = risk of undersubscription. Better opportunities elsewhere.',
+    expectedListingRange: 'Rs. 95–120',
+    expectedPremium: '-5 to +20%',
+  },
+];
+
+const DEMO_LISTED = [
+  { name:'Suryakunda Hydro Electric',  sector:'Hydropower', issuePrice:100, listingPrice:178, currentPrice:194 },
+  { name:'Ridge Line Energy Limited',   sector:'Hydropower', issuePrice:100, listingPrice:162, currentPrice:171 },
+  { name:'Yambaling Hydropower',        sector:'Hydropower', issuePrice:100, listingPrice:145, currentPrice:152 },
+  { name:'Beni Hydropower Project',     sector:'Hydropower', issuePrice:100, listingPrice:142, currentPrice:138 },
+  { name:'Dordi Khola Hydropower',      sector:'Hydropower', issuePrice:100, listingPrice:135, currentPrice:141 },
+];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('demo-disc').innerHTML = UI.demoDisclaimer();
+  await API.init();
+  API.Bus.on('data:updated', d => { UI.updateTicker(d.stocks); UI.updateMarketStatusBar(d.isMarketOpen); });
+  renderIPOs();
+});
+
+function renderIPOCard(ipo) {
+  const verdictMap = {
+    APPLY: { bg:'var(--green-bg)', border:'rgba(16,185,129,.3)', color:'var(--green)', icon:'✅', label:'APPLY' },
+    SKIP:  { bg:'var(--red-bg)',   border:'rgba(239,68,68,.3)',  color:'var(--red)',   icon:'❌', label:'SKIP'  },
+    WATCH: { bg:'var(--yellow-bg)',border:'rgba(245,158,11,.3)', color:'var(--yellow)',icon:'👁',  label:'WATCH' },
+  };
+  const v = verdictMap[ipo.verdict] || verdictMap.WATCH;
+  return `
+    <div style="background:var(--surface);border:1px solid ${v.border};border-radius:var(--r-lg);padding:18px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div>
+          <div style="font-size:16px;font-weight:700">${ipo.name}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">${ipo.sector} · ${ipo.issueManager}</div>
+        </div>
+        <span style="background:${v.bg};color:${v.color};font-size:13px;font-weight:700;padding:5px 12px;border-radius:99px">
+          ${v.icon} ${v.label}
+        </span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+        ${[
+          ['Issue Price','Rs. '+ipo.issuePrice],
+          ['Units',''+API.Utils.fmtI(ipo.units)],
+          ['EPS','Rs. '+ipo.eps],
+          ['P/E Ratio',ipo.pe+'x'],
+          ['Book Value','Rs. '+ipo.bv],
+          ['Promoter',ipo.promoterShare+'%'],
+        ].map(([l,v2])=>`
+          <div style="background:var(--surface2);border-radius:var(--r-sm);padding:8px;text-align:center">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">${l}</div>
+            <div style="font-family:var(--font-data);font-size:13px;font-weight:500">${v2}</div>
+          </div>
+        `).join('')}
+      </div>
+      ${ipo.openDate ? `<div style="font-size:12px;color:var(--text2);margin-bottom:8px">📅 Open: <strong>${ipo.openDate}</strong> → Close: <strong>${ipo.closeDate}</strong></div>` : ''}
+      <div style="background:${v.bg};border-radius:var(--r-md);padding:10px;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:4px">AI Analysis:</div>
+        <div style="font-size:12px;color:var(--text2)">${ipo.reason}</div>
+      </div>
+      <div style="display:flex;gap:12px;font-size:12px">
+        <div><span style="color:var(--text3)">Expected listing: </span><strong style="color:var(--green)">${ipo.expectedListingRange}</strong></div>
+        <div><span style="color:var(--text3)">Premium: </span><strong style="color:var(--green)">${ipo.expectedPremium}</strong></div>
+      </div>
+      <div style="margin-top:10px">
+        ${UI.accumulationBar(ipo.score)}
+        <div style="font-size:11px;color:var(--text3);margin-top:3px">Attractiveness Score: ${ipo.score}/100</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderIPOs() {
+  document.getElementById('open-ipos').innerHTML = DEMO_OPEN_IPOS.map(renderIPOCard).join('') ||
+    `<div style="grid-column:1/-1"><div class="empty-state"><div class="icon">📋</div><p>No IPOs currently open</p></div></div>`;
+  document.getElementById('upcoming-ipos').innerHTML = DEMO_UPCOMING_IPOS.map(renderIPOCard).join('');
+  document.getElementById('listed-tbody').innerHTML = DEMO_LISTED.map(d => {
+    const premium = ((d.listingPrice - d.issuePrice) / d.issuePrice * 100).toFixed(1);
+    const current = ((d.currentPrice - d.issuePrice) / d.issuePrice * 100).toFixed(1);
+    return `
+      <tr>
+        <td style="font-weight:600">${d.name}</td>
+        <td><span class="chip">${d.sector}</span></td>
+        <td class="num">Rs. ${d.issuePrice}</td>
+        <td class="num up">Rs. ${d.listingPrice}</td>
+        <td class="num up">+${premium}%</td>
+        <td class="num">${API.Utils.fmt(d.currentPrice)}</td>
+        <td><span class="signal buy">LISTED</span></td>
+      </tr>
+    `;
+  }).join('');
+}
+</script>
+</body>
+</html>

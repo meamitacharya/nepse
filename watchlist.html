@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Watchlist — NEPSE Smart</title>
+<link rel="stylesheet" href="assets/css/main.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <header class="topbar">
+    <div class="topbar-logo"><div class="logo-icon">NS</div><div class="logo-text">NEPSE<span>Smart</span></div></div>
+    <div class="topbar-ticker"><div class="ticker-inner" id="ticker-inner"><div class="ticker-item"><span class="ticker-sym">Loading…</span></div></div></div>
+    <div class="topbar-right">
+      <div class="market-status"><div class="status-dot" id="market-dot"></div><span id="market-text">…</span></div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-data)" id="last-updated">—</div>
+      <div class="avatar">A</div>
+    </div>
+  </header>
+  <aside class="sidebar">
+    <nav>
+      <div class="nav-section">
+        <div class="nav-section-label">Market</div>
+        <a class="nav-item" href="index.html"><span class="nav-icon">📊</span> Dashboard</a>
+        <a class="nav-item" href="signals.html"><span class="nav-icon">🎯</span> Buy/Sell Signals</a>
+        <a class="nav-item" href="broker.html"><span class="nav-icon">🏦</span> Broker Tracker</a>
+        <a class="nav-item" href="sectors.html"><span class="nav-icon">🔄</span> Sector Rotation</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">My Money</div>
+        <a class="nav-item" href="portfolio.html"><span class="nav-icon">💼</span> My Portfolio</a>
+        <a class="nav-item active" href="watchlist.html"><span class="nav-icon">👁️</span> Watchlist</a>
+        <a class="nav-item" href="alerts.html"><span class="nav-icon">🔔</span> Price Alerts</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" href="ipo.html"><span class="nav-icon">🚀</span> IPO Analyzer</a>
+        <a class="nav-item" href="calendar.html"><span class="nav-icon">📅</span> Bonus Calendar</a>
+        <a class="nav-item" href="calculator.html"><span class="nav-icon">🧮</span> Return Calculator</a>
+        <a class="nav-item" href="chat.html"><span class="nav-icon">🤖</span> AI Chat</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Learn</div>
+        <a class="nav-item" href="weekly.html"><span class="nav-icon">📰</span> Weekly Briefing</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="upgrade-card"><p>🔓 Get live alerts for your watchlist stocks</p><button class="btn-upgrade">Upgrade to Pro</button></div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div id="demo-disc"></div>
+    <div class="page-header">
+      <div>
+        <div class="page-title">My <span>Watchlist</span></div>
+        <div class="page-sub">Track stocks you're interested in buying</div>
+      </div>
+      <button class="btn btn-primary" onclick="Modal.open('add-watch-modal')">+ Add Stock</button>
+    </div>
+
+    <!-- Watchlist Cards -->
+    <div id="watch-grid" class="grid-auto mb-24"></div>
+
+    <!-- Watchlist Table (detailed) -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">📋</span> Watchlist Detail</div>
+        <div style="font-size:12px;color:var(--text3)" id="watch-count-label">0 stocks</div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Symbol</th><th>Company</th>
+              <th class="num">LTP</th><th class="num">Change</th><th class="num">Change %</th>
+              <th class="num">Volume</th><th class="num">Turnover</th>
+              <th>Signal</th><th>Broker Score</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="watch-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ADD TO WATCHLIST MODAL -->
+<div class="modal-overlay" id="add-watch-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add to Watchlist</div>
+      <button class="modal-close" onclick="Modal.close('add-watch-modal')">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Select Stock</label>
+        <select class="select" id="w-symbol" style="width:100%"><option value="">Choose…</option></select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="Modal.close('add-watch-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="addWatch()">Add to Watchlist</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('demo-disc').innerHTML = UI.demoDisclaimer();
+  await API.init();
+  // Populate dropdown
+  const sel = document.getElementById('w-symbol');
+  NEPSE.stocks.forEach(s => {
+    const o = document.createElement('option'); o.value = s.symbol;
+    o.textContent = `${s.symbol} — ${s.name}`; sel.appendChild(o);
+  });
+  API.Bus.on('data:updated', render);
+});
+
+function render(data) {
+  UI.updateTicker(data.stocks); UI.updateMarketStatusBar(data.isMarketOpen); UI.updateTimestamp();
+  renderWatchlist(data);
+}
+
+function renderWatchlist(data) {
+  const wl = NEPSE.watchlist;
+  document.getElementById('watch-count-label').textContent = `${wl.length} stocks`;
+
+  if (!wl.length) {
+    document.getElementById('watch-grid').innerHTML = `
+      <div style="grid-column:1/-1">
+        <div class="empty-state">
+          <div class="icon">👁️</div>
+          <p>Your watchlist is empty.<br>Add stocks from the signals page or broker tracker.</p>
+          <button class="btn btn-primary btn-sm mt-16" onclick="Modal.open('add-watch-modal')">Add Stock</button>
+        </div>
+      </div>`;
+    document.getElementById('watch-tbody').innerHTML =
+      `<tr><td colspan="10" style="text-align:center;padding:28px;color:var(--text3)">No stocks in watchlist</td></tr>`;
+    return;
+  }
+
+  const watchStocks = wl.map(sym => {
+    const s = data.stocks.find(x => x.symbol === sym) || { symbol: sym, name: sym, ltp:0, chg:0, chgPct:0, vol:0, to:0 };
+    const acc = data.brokerData.find(b => b.symbol === sym);
+    const sig = API.generateSignal(s, acc);
+    return { ...s, sig, acc };
+  });
+
+  // Cards
+  document.getElementById('watch-grid').innerHTML = watchStocks.map(s => `
+    <div style="background:var(--surface);border:1px solid ${s.sig.signal==='BUY'?'rgba(16,185,129,.3)':s.sig.signal==='SELL'?'rgba(239,68,68,.3)':'var(--border)'};
+      border-radius:var(--r-lg);padding:16px;cursor:pointer;transition:.2s"
+      onclick="UI.showStockModal('${s.symbol}')"
+      onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform='none'">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-weight:700;font-size:15px;color:var(--primary)">${s.symbol}</div>
+          <div style="font-size:11px;color:var(--text3)">${s.name}</div>
+        </div>
+        ${UI.signalBadge(s.sig.signal)}
+      </div>
+      <div style="font-family:var(--font-data);font-size:24px;font-weight:500;margin-bottom:4px">Rs. ${API.Utils.fmt(s.ltp)}</div>
+      <div class="${API.Utils.clsName(s.chg)}" style="font-size:13px;margin-bottom:12px">
+        ${API.Utils.arrow(s.chg)} ${s.chg>=0?'+':''}${API.Utils.fmt(s.chg)} (${s.chgPct>=0?'+':''}${API.Utils.fmt(s.chgPct)}%)
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Entry: ${s.sig.zone}</div>
+      ${s.acc ? `
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px">
+          Broker accumulation: ${s.acc.trend}
+        </div>` : ''}
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();removeWatch('${s.symbol}')">Remove</button>
+        <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();openAlertModal('${s.symbol}')">🔔 Alert</button>
+        <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();location.href='portfolio.html'">+ Portfolio</button>
+      </div>
+    </div>
+  `).join('');
+
+  // Table
+  document.getElementById('watch-tbody').innerHTML = watchStocks.map(s => `
+    <tr onclick="UI.showStockModal('${s.symbol}')" style="cursor:pointer">
+      <td class="td-symbol">${s.symbol}</td>
+      <td class="td-name">${s.name}</td>
+      <td class="num">${API.Utils.fmt(s.ltp)}</td>
+      <td class="num ${API.Utils.clsName(s.chg)}">${s.chg>=0?'+':''}${API.Utils.fmt(s.chg)}</td>
+      <td class="num ${API.Utils.clsName(s.chgPct)}">${s.chgPct>=0?'+':''}${API.Utils.fmt(s.chgPct)}%</td>
+      <td class="num">${API.Utils.fmtI(s.vol)}</td>
+      <td class="num">${API.Utils.fmtCr(s.to)}</td>
+      <td>${UI.signalBadge(s.sig.signal)}</td>
+      <td>${s.acc ? UI.accumulationBar(s.acc.score) : '—'}</td>
+      <td onclick="event.stopPropagation()">
+        <button class="btn btn-xs btn-danger" onclick="removeWatch('${s.symbol}')">✕</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function addWatch() {
+  const sym = document.getElementById('w-symbol').value;
+  if (!sym) { Toast.warn('Select Stock', 'Please choose a stock'); return; }
+  UI.addToWatchlist(sym);
+  Modal.close('add-watch-modal');
+  renderWatchlist({ stocks: NEPSE.stocks, brokerData: NEPSE.brokerData });
+}
+
+function removeWatch(sym) {
+  NEPSE.watchlist = NEPSE.watchlist.filter(s => s !== sym);
+  API.saveWatchlist();
+  Toast.info('Removed', `${sym} removed from watchlist`);
+  renderWatchlist({ stocks: NEPSE.stocks, brokerData: NEPSE.brokerData });
+}
+</script>
+</body>
+</html>

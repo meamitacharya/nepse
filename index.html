@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>NEPSE Smart — Dashboard</title>
+<link rel="stylesheet" href="assets/css/main.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- ══════════════════════════════════════════
+       TOPBAR
+  ══════════════════════════════════════════ -->
+  <header class="topbar">
+    <div class="topbar-logo">
+      <div class="logo-icon">NS</div>
+      <div class="logo-text">NEPSE<span>Smart</span></div>
+    </div>
+
+    <div class="topbar-ticker">
+      <div class="ticker-inner" id="ticker-inner">
+        <!-- Populated by JS -->
+        <div class="ticker-item"><span class="ticker-sym">Loading…</span></div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div class="market-status">
+        <div class="status-dot" id="market-dot"></div>
+        <span id="market-text">Checking…</span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-data)" id="last-updated">—</div>
+      <div class="btn-icon" onclick="API.fetch()" data-tip="Refresh Data">⟳</div>
+      <a href="alerts.html" style="position:relative">
+        <div class="btn-icon">🔔</div>
+        <div class="notif-dot" id="alert-dot" style="display:none"></div>
+      </a>
+      <div class="avatar" title="My Account">A</div>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════
+       SIDEBAR
+  ══════════════════════════════════════════ -->
+  <aside class="sidebar">
+    <nav>
+      <div class="nav-section">
+        <div class="nav-section-label">Market</div>
+        <a class="nav-item active" href="index.html">
+          <span class="nav-icon">📊</span> Dashboard
+        </a>
+        <a class="nav-item" href="signals.html">
+          <span class="nav-icon">🎯</span> Buy/Sell Signals
+          <span class="nav-badge green" id="sig-count">0</span>
+        </a>
+        <a class="nav-item" href="broker.html">
+          <span class="nav-icon">🏦</span> Broker Tracker
+          <span class="nav-badge" id="burst-count">0</span>
+        </a>
+        <a class="nav-item" href="sectors.html">
+          <span class="nav-icon">🔄</span> Sector Rotation
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">My Money</div>
+        <a class="nav-item" href="portfolio.html">
+          <span class="nav-icon">💼</span> My Portfolio
+        </a>
+        <a class="nav-item" href="watchlist.html">
+          <span class="nav-icon">👁️</span> Watchlist
+          <span class="nav-badge yellow" id="watch-count">0</span>
+        </a>
+        <a class="nav-item" href="alerts.html">
+          <span class="nav-icon">🔔</span> Price Alerts
+          <span class="nav-badge" id="alerts-count">0</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" href="ipo.html">
+          <span class="nav-icon">🚀</span> IPO Analyzer
+        </a>
+        <a class="nav-item" href="calendar.html">
+          <span class="nav-icon">📅</span> Bonus Calendar
+        </a>
+        <a class="nav-item" href="calculator.html">
+          <span class="nav-icon">🧮</span> Return Calculator
+        </a>
+        <a class="nav-item" href="chat.html">
+          <span class="nav-icon">🤖</span> AI Chat
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Learn</div>
+        <a class="nav-item" href="weekly.html">
+          <span class="nav-icon">📰</span> Weekly Briefing
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="upgrade-card">
+        <p>🔓 Unlock unlimited signals, broker alerts & AI chat</p>
+        <button class="btn-upgrade">Upgrade to Pro — Rs. 299/mo</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══════════════════════════════════════════
+       MAIN CONTENT
+  ══════════════════════════════════════════ -->
+  <main class="main-content">
+
+    <!-- DEMO DISCLAIMER -->
+    <div id="demo-disclaimer"></div>
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+      <div>
+        <div class="page-title">Market <span>Dashboard</span></div>
+        <div class="page-sub">Today's overview — NEPSE Nepal</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="live-badge" id="live-indicator">DEMO</div>
+        <button class="btn btn-ghost btn-sm" onclick="API.fetch()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- ── INDEX CARDS ── -->
+    <div class="grid-4 mb-24" id="index-cards">
+      <!-- filled by JS -->
+    </div>
+
+    <!-- ── MARKET BREADTH + BURST ALERTS ── -->
+    <div class="grid-2 mb-24">
+
+      <!-- Breadth -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">📈</span> Market Breadth</div>
+          <div class="card-action" onclick="location.href='signals.html'">View signals →</div>
+        </div>
+        <div id="breadth-section"><!-- JS --></div>
+      </div>
+
+      <!-- Burst Predictor -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">💥</span> Burst Predictor</div>
+          <div class="card-action" onclick="location.href='broker.html'">Full analysis →</div>
+        </div>
+        <div style="font-size:11.5px;color:var(--text3);margin-bottom:12px">
+          Stocks with heavy smart-money accumulation — breakout imminent
+        </div>
+        <div id="burst-list"><!-- JS --></div>
+      </div>
+
+    </div>
+
+    <!-- ── TOP SIGNALS TODAY ── -->
+    <div class="card mb-24">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">🎯</span> Today's Top Signals</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="tabs" style="margin-bottom:0;padding:2px">
+            <button class="tab active" onclick="filterSignalTable('ALL',this)">All</button>
+            <button class="tab" onclick="filterSignalTable('BUY',this)">Buy</button>
+            <button class="tab" onclick="filterSignalTable('SELL',this)">Sell</button>
+            <button class="tab" onclick="filterSignalTable('HOLD',this)">Hold</button>
+          </div>
+          <a href="signals.html" class="card-action">Full list →</a>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="signal-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Company</th>
+              <th class="num">LTP (Rs.)</th>
+              <th class="num">Change</th>
+              <th>Signal</th>
+              <th>Score</th>
+              <th>Entry Zone</th>
+              <th>Target</th>
+              <th>Why</th>
+            </tr>
+          </thead>
+          <tbody id="signal-tbody">
+            <tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text3)">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── TWO COLUMNS: SECTOR + CIRCUIT ── -->
+    <div class="grid-2 mb-24">
+
+      <!-- Sector Rotation -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">🔄</span> Sector Rotation</div>
+          <div class="card-action" onclick="location.href='sectors.html'">Details →</div>
+        </div>
+        <div id="sector-list"><!-- JS --></div>
+      </div>
+
+      <!-- Circuit Breaker -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">⚡</span> Circuit Breaker Watch</div>
+          <div style="font-size:11px;color:var(--text3)">Near ±10% limit</div>
+        </div>
+        <div id="circuit-list"><!-- JS --></div>
+      </div>
+
+    </div>
+
+    <!-- ── MY PORTFOLIO SNAPSHOT ── -->
+    <div class="card mb-24" id="portfolio-snapshot">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">💼</span> My Portfolio</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="location.href='portfolio.html'">Manage →</button>
+        </div>
+      </div>
+      <div id="portfolio-content"><!-- JS --></div>
+    </div>
+
+    <!-- ── FULL MARKET TABLE ── -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">📋</span> All Traded Stocks</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="stock-search" class="input"
+            placeholder="Search symbol…" style="width:160px;padding:6px 12px"
+            oninput="filterStockTable(this.value)"/>
+          <select class="select" id="sector-filter" onchange="filterStockTable()"
+            style="padding:6px 12px;padding-right:28px">
+            <option value="">All Sectors</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="full-table">
+          <thead>
+            <tr>
+              <th onclick="sortFullTable('symbol')">Symbol ↕</th>
+              <th onclick="sortFullTable('name')">Company</th>
+              <th class="num" onclick="sortFullTable('ltp')">LTP ↕</th>
+              <th class="num" onclick="sortFullTable('chg')">Change ↕</th>
+              <th class="num" onclick="sortFullTable('chgPct')">Chg % ↕</th>
+              <th class="num" onclick="sortFullTable('high')">High</th>
+              <th class="num" onclick="sortFullTable('low')">Low</th>
+              <th class="num" onclick="sortFullTable('vol')">Volume ↕</th>
+              <th class="num" onclick="sortFullTable('to')">Turnover ↕</th>
+              <th>Signal</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="full-tbody">
+            <tr><td colspan="11" style="text-align:center;padding:30px;color:var(--text3)">Loading market data…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:12px;color:var(--text3)" id="table-info">—</div>
+        <div style="display:flex;gap:6px" id="table-pagination"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════ -->
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+// ── PAGE STATE ──────────────────────────────────────────────
+let signalFilter = 'ALL';
+let fullTablePage = 1;
+const FULL_PAGE_SIZE = 20;
+let fullTableData = [];
+let fullSortCol = 'to';
+let fullSortAsc = false;
+
+// ── INIT ────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('demo-disclaimer').innerHTML = UI.demoDisclaimer();
+  await API.init();
+  API.Bus.on('data:updated', renderAll);
+});
+
+// ── MAIN RENDER ─────────────────────────────────────────────
+function renderAll(data) {
+  UI.updateTicker(data.stocks);
+  UI.updateMarketStatusBar(data.isMarketOpen);
+  UI.updateTimestamp();
+  renderIndexCards(data.indices);
+  renderBreadth(data.indices);
+  renderBurstList(data.stocks, data.brokerData);
+  renderSignalTable(data.stocks, data.brokerData);
+  renderSectorList(data.stocks);
+  renderCircuitList(data.stocks);
+  renderPortfolioSnapshot();
+  renderFullTable(data.stocks, data.brokerData);
+  updateNavBadges(data);
+
+  // Live indicator
+  const ind = document.getElementById('live-indicator');
+  if (API.CONFIG.DEMO_MODE) {
+    ind.textContent = 'DEMO';
+    ind.style.background = 'var(--yellow-bg)';
+    ind.style.color = 'var(--yellow)';
+    ind.style.border = '1px solid rgba(245,158,11,.3)';
+  } else {
+    ind.className = 'live-badge';
+    ind.textContent = 'LIVE';
+  }
+}
+
+// ── INDEX CARDS ─────────────────────────────────────────────
+function renderIndexCards(idx) {
+  const el = document.getElementById('index-cards');
+  const cards = [
+    { label:'NEPSE Index', val: idx.nepse?.value, chg: idx.nepse?.change, pct: idx.nepse?.pct, icon:'📊' },
+    { label:'Sensitive Index', val: idx.sensitive?.value, chg: idx.sensitive?.change, pct: idx.sensitive?.pct, icon:'📈' },
+    { label:'Float Index', val: idx.float?.value, chg: idx.float?.change, pct: idx.float?.pct, icon:'🌊' },
+    { label:'Total Turnover', val: null, raw: idx.turnover, icon:'💰', isTurnover: true },
+  ];
+  el.innerHTML = cards.map(c => {
+    const up = (c.chg || 0) >= 0;
+    const cls = up ? 'up' : 'dn';
+    return `
+      <div class="stat-card">
+        <div class="stat-label">${c.label}</div>
+        <div class="stat-value" style="font-size:22px">
+          ${c.isTurnover ? API.Utils.fmtCr(c.raw) : API.Utils.fmt(c.val)}
+        </div>
+        ${!c.isTurnover ? `
+        <div class="stat-change ${cls}">
+          ${up ? '▲' : '▼'} ${API.Utils.fmt(Math.abs(c.chg))}
+          (${up ? '+' : ''}${API.Utils.fmt(c.pct)}%)
+        </div>` : `<div class="stat-change neu" style="font-size:11px">Today's traded value</div>`}
+        <div class="stat-icon">${c.icon}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── BREADTH ─────────────────────────────────────────────────
+function renderBreadth(idx) {
+  const adv  = idx.advances  || 0;
+  const dec  = idx.declines  || 0;
+  const unch = idx.unchanged || 0;
+  const total = adv + dec + unch;
+  const advPct  = total ? (adv  / total * 100).toFixed(0) : 0;
+  const decPct  = total ? (dec  / total * 100).toFixed(0) : 0;
+  const sentiment = adv > dec * 1.5 ? '🐂 BULLISH' : dec > adv * 1.5 ? '🐻 BEARISH' : '😐 NEUTRAL';
+  document.getElementById('breadth-section').innerHTML = `
+    <div style="display:flex;gap:16px;margin-bottom:16px">
+      <div style="text-align:center;flex:1">
+        <div style="font-family:var(--font-data);font-size:28px;font-weight:500;color:var(--green)">${adv}</div>
+        <div style="font-size:11px;color:var(--text3)">Advances</div>
+      </div>
+      <div style="text-align:center;flex:1">
+        <div style="font-family:var(--font-data);font-size:28px;font-weight:500;color:var(--red)">${dec}</div>
+        <div style="font-size:11px;color:var(--text3)">Declines</div>
+      </div>
+      <div style="text-align:center;flex:1">
+        <div style="font-family:var(--font-data);font-size:28px;font-weight:500;color:var(--text3)">${unch}</div>
+        <div style="font-size:11px;color:var(--text3)">Unchanged</div>
+      </div>
+    </div>
+    <!-- Breadth Bar -->
+    <div style="height:8px;border-radius:99px;overflow:hidden;display:flex;margin-bottom:10px">
+      <div style="width:${advPct}%;background:var(--green);transition:.5s"></div>
+      <div style="width:${decPct}%;background:var(--red);transition:.5s"></div>
+      <div style="flex:1;background:var(--surface3)"></div>
+    </div>
+    <div style="text-align:center;font-weight:600;font-size:13px">${sentiment}</div>
+    <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:4px">${adv}/${total} stocks advancing today</div>
+  `;
+}
+
+// ── BURST LIST ───────────────────────────────────────────────
+function renderBurstList(stocks, accData) {
+  const bursts = API.detectBurstCandidates(stocks, accData).slice(0, 4);
+  const el = document.getElementById('burst-list');
+  document.getElementById('burst-count').textContent = bursts.length;
+
+  if (!bursts.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No burst candidates today</p></div>`;
+    return;
+  }
+  el.innerHTML = bursts.map(b => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer"
+      onclick="UI.showStockModal('${b.symbol}')">
+      <div style="display:flex;align-items:center;gap:10px">
+        ${UI.renderScoreRing(b.score, 44)}
+        <div>
+          <div style="font-weight:700;color:var(--primary)">${b.symbol}
+            <span style="font-weight:400;font-size:11px;color:var(--text3)"> · ${b.confidence} confidence</span>
+          </div>
+          <div style="font-size:11px;color:var(--text2)">Broker ${b.topBuyers.slice(0,2).join(' & ')} accumulating ${b.days} days</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--font-data);font-size:13px">Rs. ${API.Utils.fmt(b.stock?.ltp)}</div>
+        <div style="font-size:11px;color:var(--green)">Target: Rs. ${b.priceTarget}</div>
+        <div style="font-size:10px;color:var(--text3)">~${b.daysToBreak} days</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── SIGNAL TABLE ─────────────────────────────────────────────
+let allSignals = [];
+function renderSignalTable(stocks, accData) {
+  allSignals = stocks.map(s => ({
+    stock: s,
+    sig: API.generateSignal(s, accData.find(a => a.symbol === s.symbol)),
+  }));
+  renderSignalPage();
+  document.getElementById('sig-count').textContent =
+    allSignals.filter(x => x.sig.signal === 'BUY').length;
+}
+
+function filterSignalTable(type, btn) {
+  signalFilter = type;
+  document.querySelectorAll('#signal-table .tab').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderSignalPage();
+}
+
+function renderSignalPage() {
+  const filtered = signalFilter === 'ALL'
+    ? allSignals
+    : allSignals.filter(x => x.sig.signal === signalFilter);
+  const top = filtered.slice(0, 12);
+  const tbody = document.getElementById('signal-tbody');
+  if (!top.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">No ${signalFilter} signals</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = top.map(({ stock: s, sig }) => `
+    <tr onclick="UI.showStockModal('${s.symbol}')" style="cursor:pointer">
+      <td class="td-symbol">${s.symbol}</td>
+      <td class="td-name">${s.name}</td>
+      <td class="num">${API.Utils.fmt(s.ltp)}</td>
+      <td class="num">
+        <div class="change-cell ${API.Utils.clsName(s.chg)}">
+          ${API.Utils.arrow(s.chg)} ${API.Utils.fmt(Math.abs(s.chg))}
+          <span style="font-size:11px">(${s.chg>=0?'+':''}${API.Utils.fmt(s.chgPct)}%)</span>
+        </div>
+      </td>
+      <td>${UI.signalBadge(sig.signal)}</td>
+      <td>${UI.accumulationBar(sig.score)}</td>
+      <td style="font-size:12px;color:var(--text2)">${sig.zone}</td>
+      <td style="font-size:12px;color:var(--green)">${sig.target || '—'}</td>
+      <td style="font-size:11px;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sig.reason}</td>
+    </tr>
+  `).join('');
+}
+
+// ── SECTOR LIST ──────────────────────────────────────────────
+function renderSectorList(stocks) {
+  const sectors = API.analyzeSectorRotation(stocks);
+  const el = document.getElementById('sector-list');
+  el.innerHTML = sectors.map(sec => {
+    const cls = sec.avgChg >= 0 ? 'up' : 'dn';
+    const momColor = sec.momentum === 'HOT' ? 'var(--green)' : sec.momentum === 'POSITIVE' ? 'var(--text2)' : sec.momentum === 'COLD' ? 'var(--red)' : 'var(--text3)';
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-weight:600;font-size:13px">${sec.name}</div>
+          <div style="font-size:11px;color:var(--text3)">${sec.stocks} stocks · Vol ${API.Utils.fmtCr(sec.totalVol)}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="${cls}" style="font-family:var(--font-data);font-size:13px;font-weight:500">
+            ${sec.avgChg >= 0 ? '+' : ''}${API.Utils.fmt(sec.avgChg)}%
+          </div>
+          <div style="font-size:11px;font-weight:600;color:${momColor}">${sec.momentum}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── CIRCUIT LIST ─────────────────────────────────────────────
+function renderCircuitList(stocks) {
+  const circuits = API.detectCircuitCandidates(stocks);
+  const el = document.getElementById('circuit-list');
+  if (!circuits.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">✅</div><p>No stocks near circuit today</p></div>`;
+    return;
+  }
+  el.innerHTML = circuits.map(s => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer"
+      onclick="UI.showStockModal('${s.symbol}')">
+      <div>
+        <div style="font-weight:600;font-size:13px">${s.symbol}</div>
+        <div style="font-size:11px;color:var(--text3)">${s.direction === 'upper' ? '⬆️ Upper circuit' : '⬇️ Lower circuit'}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="${s.direction==='upper'?'up':'dn'}" style="font-family:var(--font-data);font-size:13px">
+          ${s.chg>=0?'+':''}${API.Utils.fmt(s.chgPct)}%
+        </div>
+        <div style="font-size:11px;color:var(--text3)">${API.Utils.fmt(s.distToCircuit)}% to limit</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── PORTFOLIO SNAPSHOT ────────────────────────────────────────
+function renderPortfolioSnapshot() {
+  const holdings = API.calcPortfolio();
+  const el = document.getElementById('portfolio-content');
+
+  if (!holdings.length) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">💼</div>
+        <p>No holdings yet. Add stocks to track your P&L.</p>
+        <button class="btn btn-primary btn-sm mt-16" onclick="location.href='portfolio.html'">Add Holdings</button>
+      </div>
+    `;
+    return;
+  }
+
+  const totalInvested = holdings.reduce((s,h) => s+h.invested, 0);
+  const totalCurrent  = holdings.reduce((s,h) => s+h.current, 0);
+  const totalPnl      = totalCurrent - totalInvested;
+  const totalPnlPct   = (totalPnl / totalInvested * 100);
+
+  el.innerHTML = `
+    <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="background:var(--surface2);border-radius:var(--r-md);padding:12px 18px;flex:1;min-width:140px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:3px">Total Invested</div>
+        <div style="font-family:var(--font-data);font-size:18px;font-weight:500">Rs. ${API.Utils.fmtI(totalInvested)}</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--r-md);padding:12px 18px;flex:1;min-width:140px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:3px">Current Value</div>
+        <div style="font-family:var(--font-data);font-size:18px;font-weight:500">Rs. ${API.Utils.fmtI(totalCurrent)}</div>
+      </div>
+      <div style="background:${totalPnl>=0?'var(--green-bg)':'var(--red-bg)'};border-radius:var(--r-md);padding:12px 18px;flex:1;min-width:140px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:3px">Total P&L</div>
+        <div class="${totalPnl>=0?'up':'dn'}" style="font-family:var(--font-data);font-size:18px;font-weight:500">
+          ${totalPnl>=0?'+':''}Rs. ${API.Utils.fmtI(Math.abs(totalPnl))}
+          <span style="font-size:13px">(${totalPnlPct>=0?'+':''}${API.Utils.fmt(totalPnlPct)}%)</span>
+        </div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr>
+          <th>Symbol</th><th class="num">Units</th><th class="num">Avg Buy</th>
+          <th class="num">LTP</th><th class="num">Current Value</th>
+          <th class="num">P&L</th><th>Signal</th>
+        </tr></thead>
+        <tbody>
+          ${holdings.map(h => `
+            <tr onclick="UI.showStockModal('${h.symbol}')" style="cursor:pointer">
+              <td class="td-symbol">${h.symbol}</td>
+              <td class="num">${API.Utils.fmtI(h.units)}</td>
+              <td class="num">${API.Utils.fmt(h.avgPrice)}</td>
+              <td class="num">${API.Utils.fmt(h.ltp)}</td>
+              <td class="num">Rs. ${API.Utils.fmtI(h.current)}</td>
+              <td class="num ${h.pnl>=0?'up':'dn'}">
+                ${h.pnl>=0?'+':''}Rs. ${API.Utils.fmtI(Math.abs(h.pnl))}
+                <span style="font-size:11px">(${h.pnlPct>=0?'+':''}${API.Utils.fmt(h.pnlPct)}%)</span>
+              </td>
+              <td>${h.sig ? UI.signalBadge(h.sig.signal) : '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ── FULL TABLE ───────────────────────────────────────────────
+function renderFullTable(stocks, accData) {
+  // Populate sector filter
+  const secSel = document.getElementById('sector-filter');
+  const sectors = [...new Set(stocks.map(s => s.sector).filter(Boolean))].sort();
+  if (secSel.options.length <= 1) {
+    sectors.forEach(sec => {
+      const opt = document.createElement('option');
+      opt.value = sec; opt.textContent = sec;
+      secSel.appendChild(opt);
+    });
+  }
+  fullTableData = stocks.map(s => ({
+    ...s,
+    sig: API.generateSignal(s, accData.find(a => a.symbol === s.symbol)),
+  }));
+  sortAndRenderFull();
+}
+
+function sortFullTable(col) {
+  if (fullSortCol === col) fullSortAsc = !fullSortAsc;
+  else { fullSortCol = col; fullSortAsc = false; }
+  sortAndRenderFull();
+}
+
+function filterStockTable(val) {
+  fullTablePage = 1;
+  sortAndRenderFull();
+}
+
+function sortAndRenderFull() {
+  const query  = (document.getElementById('stock-search')?.value || '').toLowerCase();
+  const sector = document.getElementById('sector-filter')?.value || '';
+
+  let data = fullTableData.filter(s => {
+    if (query && !s.symbol.toLowerCase().includes(query) && !s.name.toLowerCase().includes(query)) return false;
+    if (sector && s.sector !== sector) return false;
+    return true;
+  });
+
+  data.sort((a, b) => {
+    let va = a[fullSortCol], vb = b[fullSortCol];
+    if (typeof va === 'string') return fullSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    va = va ?? -Infinity; vb = vb ?? -Infinity;
+    return fullSortAsc ? va - vb : vb - va;
+  });
+
+  const total = data.length;
+  const pages = Math.ceil(total / FULL_PAGE_SIZE);
+  const start = (fullTablePage - 1) * FULL_PAGE_SIZE;
+  const page  = data.slice(start, start + FULL_PAGE_SIZE);
+
+  document.getElementById('table-info').textContent =
+    `Showing ${start+1}–${Math.min(start+FULL_PAGE_SIZE,total)} of ${total} stocks`;
+
+  const tbody = document.getElementById('full-tbody');
+  tbody.innerHTML = page.map(s => `
+    <tr onclick="UI.showStockModal('${s.symbol}')" style="cursor:pointer">
+      <td class="td-symbol">${s.symbol}</td>
+      <td class="td-name">${s.name}</td>
+      <td class="num">${API.Utils.fmt(s.ltp)}</td>
+      <td class="num">
+        <div class="change-cell ${API.Utils.clsName(s.chg)}">
+          ${API.Utils.arrow(s.chg)} ${API.Utils.fmt(Math.abs(s.chg))}
+        </div>
+      </td>
+      <td class="num ${API.Utils.clsName(s.chgPct)}">${s.chg>=0?'+':''}${API.Utils.fmt(s.chgPct)}%</td>
+      <td class="num up">${API.Utils.fmt(s.high)}</td>
+      <td class="num dn">${API.Utils.fmt(s.low)}</td>
+      <td class="num">${API.Utils.fmtI(s.vol)}</td>
+      <td class="num">${API.Utils.fmtCr(s.to)}</td>
+      <td>${UI.signalBadge(s.sig.signal)}</td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();UI.addToWatchlist('${s.symbol}')">+</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  // Pagination
+  let phtml = '';
+  for (let p = 1; p <= pages; p++) {
+    if (p === 1 || p === pages || Math.abs(p - fullTablePage) <= 1) {
+      phtml += `<button class="btn btn-xs btn-ghost ${p===fullTablePage?'btn-primary':''}"
+        onclick="fullTablePage=${p};sortAndRenderFull()">${p}</button>`;
+    } else if (Math.abs(p - fullTablePage) === 2) {
+      phtml += `<span style="color:var(--text3);padding:0 2px;font-size:12px">…</span>`;
+    }
+  }
+  document.getElementById('table-pagination').innerHTML = phtml;
+}
+
+// ── NAV BADGES ──────────────────────────────────────────────
+function updateNavBadges(data) {
+  const watchEl = document.getElementById('watch-count');
+  const alertEl = document.getElementById('alerts-count');
+  if (watchEl) watchEl.textContent = NEPSE.watchlist.length;
+  if (alertEl) alertEl.textContent = NEPSE.alerts.filter(a => a.active).length;
+
+  const alertDot = document.getElementById('alert-dot');
+  if (alertDot) alertDot.style.display = NEPSE.alerts.filter(a => a.active).length ? 'block' : 'none';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Buy/Sell Signals — NEPSE Smart</title>
+<link rel="stylesheet" href="assets/css/main.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <header class="topbar">
+    <div class="topbar-logo"><div class="logo-icon">NS</div><div class="logo-text">NEPSE<span>Smart</span></div></div>
+    <div class="topbar-ticker"><div class="ticker-inner" id="ticker-inner"><div class="ticker-item"><span class="ticker-sym">Loading…</span></div></div></div>
+    <div class="topbar-right">
+      <div class="market-status"><div class="status-dot" id="market-dot"></div><span id="market-text">…</span></div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-data)" id="last-updated">—</div>
+      <div class="avatar">A</div>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <nav>
+      <div class="nav-section">
+        <div class="nav-section-label">Market</div>
+        <a class="nav-item" href="index.html"><span class="nav-icon">📊</span> Dashboard</a>
+        <a class="nav-item active" href="signals.html"><span class="nav-icon">🎯</span> Buy/Sell Signals</a>
+        <a class="nav-item" href="broker.html"><span class="nav-icon">🏦</span> Broker Tracker</a>
+        <a class="nav-item" href="sectors.html"><span class="nav-icon">🔄</span> Sector Rotation</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">My Money</div>
+        <a class="nav-item" href="portfolio.html"><span class="nav-icon">💼</span> My Portfolio</a>
+        <a class="nav-item" href="watchlist.html"><span class="nav-icon">👁️</span> Watchlist</a>
+        <a class="nav-item" href="alerts.html"><span class="nav-icon">🔔</span> Price Alerts</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" href="ipo.html"><span class="nav-icon">🚀</span> IPO Analyzer</a>
+        <a class="nav-item" href="calendar.html"><span class="nav-icon">📅</span> Bonus Calendar</a>
+        <a class="nav-item" href="calculator.html"><span class="nav-icon">🧮</span> Return Calculator</a>
+        <a class="nav-item" href="chat.html"><span class="nav-icon">🤖</span> AI Chat</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Learn</div>
+        <a class="nav-item" href="weekly.html"><span class="nav-icon">📰</span> Weekly Briefing</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="upgrade-card"><p>🔓 Get instant signal alerts on your phone</p><button class="btn-upgrade">Upgrade to Pro</button></div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div id="demo-disc"></div>
+
+    <div class="page-header">
+      <div>
+        <div class="page-title">Buy/Sell <span>Signals</span></div>
+        <div class="page-sub">AI-powered signals based on broker activity, price action & fundamentals</div>
+      </div>
+      <div class="live-badge" id="live-ind">DEMO</div>
+    </div>
+
+    <!-- Signal Summary Cards -->
+    <div class="grid-4 mb-24" id="sig-summary"></div>
+
+    <!-- How signals work -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:24px">
+      <div style="font-weight:600;margin-bottom:10px">🧠 How Signals Are Calculated</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;font-size:12px;color:var(--text2)">
+        <div style="text-align:center;padding:10px;background:var(--surface2);border-radius:var(--r-md)">
+          <div style="font-size:20px;margin-bottom:4px">🏦</div>
+          <div style="font-weight:600;color:var(--text);margin-bottom:2px">Broker Activity</div>
+          <div>40% weight — Are smart money brokers buying or selling?</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--surface2);border-radius:var(--r-md)">
+          <div style="font-size:20px;margin-bottom:4px">📍</div>
+          <div style="font-weight:600;color:var(--text);margin-bottom:2px">Price Position</div>
+          <div>30% weight — Is it near support (buy zone) or resistance?</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--surface2);border-radius:var(--r-md)">
+          <div style="font-size:20px;margin-bottom:4px">📊</div>
+          <div style="font-weight:600;color:var(--text);margin-bottom:2px">Volume Anomaly</div>
+          <div>20% weight — Unusual volume signals institutional activity</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--surface2);border-radius:var(--r-md)">
+          <div style="font-size:20px;margin-bottom:4px">💹</div>
+          <div style="font-weight:600;color:var(--text);margin-bottom:2px">Fundamentals</div>
+          <div>10% weight — PE ratio vs sector average (value check)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter + Table -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">🎯</span> All Signals</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <div class="tabs" style="margin-bottom:0;padding:2px">
+            <button class="tab active" onclick="setFilter('ALL',this)">All</button>
+            <button class="tab" onclick="setFilter('BUY',this)">🟢 Buy</button>
+            <button class="tab" onclick="setFilter('SELL',this)">🔴 Sell</button>
+            <button class="tab" onclick="setFilter('HOLD',this)">🟡 Hold</button>
+          </div>
+          <select class="select" id="sector-fil" onchange="renderTable()" style="padding:6px 12px;padding-right:28px">
+            <option value="">All Sectors</option>
+          </select>
+          <select class="select" id="strength-fil" onchange="renderTable()" style="padding:6px 12px;padding-right:28px">
+            <option value="">All Strengths</option>
+            <option value="STRONG">Strong Only</option>
+            <option value="MODERATE">Moderate</option>
+          </select>
+          <input type="text" class="input" id="sym-search" placeholder="Search…"
+            style="width:130px;padding:6px 12px" oninput="renderTable()"/>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th onclick="sort('symbol')">Symbol ↕</th>
+              <th>Company</th>
+              <th class="num" onclick="sort('ltp')">LTP (Rs.) ↕</th>
+              <th class="num" onclick="sort('chgPct')">Change ↕</th>
+              <th>Signal</th>
+              <th onclick="sort('score')">Score ↕</th>
+              <th>Strength</th>
+              <th>Entry Zone</th>
+              <th>Target (4–8 wks)</th>
+              <th>Stop Loss</th>
+              <th>Reason</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="sig-tbody">
+            <tr><td colspan="12" style="text-align:center;padding:32px;color:var(--text3)">Loading signals…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:12px;color:var(--text3)" id="sig-info">—</div>
+        <div style="font-size:11px;color:var(--text3)">⚠️ Signals are for informational purposes. Always set stop loss.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+let allSigs = [], curFilter = 'ALL', sortCol = 'score', sortAsc = false;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('demo-disc').innerHTML = UI.demoDisclaimer();
+  await API.init();
+  API.Bus.on('data:updated', render);
+});
+
+function render(data) {
+  UI.updateTicker(data.stocks);
+  UI.updateMarketStatusBar(data.isMarketOpen);
+  UI.updateTimestamp();
+
+  // Build signals
+  allSigs = data.stocks.map(s => {
+    const acc = data.brokerData.find(b => b.symbol === s.symbol);
+    const sig = API.generateSignal(s, acc);
+    return { ...s, sig, acc };
+  });
+
+  // Populate sector filter
+  const secSel = document.getElementById('sector-fil');
+  if (secSel.options.length <= 1) {
+    const sectors = [...new Set(allSigs.map(s => s.sector).filter(Boolean))].sort();
+    sectors.forEach(sec => {
+      const o = document.createElement('option'); o.value = sec; o.textContent = sec;
+      secSel.appendChild(o);
+    });
+  }
+
+  renderSummary();
+  renderTable();
+}
+
+function renderSummary() {
+  const buy    = allSigs.filter(s => s.sig.signal === 'BUY').length;
+  const sell   = allSigs.filter(s => s.sig.signal === 'SELL').length;
+  const hold   = allSigs.filter(s => s.sig.signal === 'HOLD').length;
+  const strong = allSigs.filter(s => s.sig.strength === 'STRONG').length;
+  document.getElementById('sig-summary').innerHTML = `
+    <div class="stat-card" onclick="setFilter('BUY')" style="cursor:pointer;border-left:3px solid var(--green)">
+      <div class="stat-label">Buy Signals</div>
+      <div class="stat-value" style="font-size:30px;color:var(--green)">${buy}</div>
+      <div class="stat-change up">Recommended buy</div>
+      <div class="stat-icon">🟢</div>
+    </div>
+    <div class="stat-card" onclick="setFilter('SELL')" style="cursor:pointer;border-left:3px solid var(--red)">
+      <div class="stat-label">Sell Signals</div>
+      <div class="stat-value" style="font-size:30px;color:var(--red)">${sell}</div>
+      <div class="stat-change dn">Consider exiting</div>
+      <div class="stat-icon">🔴</div>
+    </div>
+    <div class="stat-card" onclick="setFilter('HOLD')" style="cursor:pointer">
+      <div class="stat-label">Hold / Watch</div>
+      <div class="stat-value" style="font-size:30px;color:var(--yellow)">${hold}</div>
+      <div class="stat-change neu">Monitor closely</div>
+      <div class="stat-icon">🟡</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Strong Signals</div>
+      <div class="stat-value" style="font-size:30px;color:var(--primary)">${strong}</div>
+      <div class="stat-change neu">High confidence</div>
+      <div class="stat-icon">💪</div>
+    </div>
+  `;
+}
+
+function setFilter(f, btn) {
+  curFilter = f;
+  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderTable();
+}
+
+function sort(col) {
+  sortAsc = sortCol === col ? !sortAsc : false;
+  sortCol = col;
+  renderTable();
+}
+
+function renderTable() {
+  const q    = document.getElementById('sym-search').value.toLowerCase();
+  const sec  = document.getElementById('sector-fil').value;
+  const str  = document.getElementById('strength-fil').value;
+
+  let data = allSigs.filter(s => {
+    if (curFilter !== 'ALL' && s.sig.signal !== curFilter) return false;
+    if (q && !s.symbol.toLowerCase().includes(q) && !s.name.toLowerCase().includes(q)) return false;
+    if (sec && s.sector !== sec) return false;
+    if (str && s.sig.strength !== str) return false;
+    return true;
+  });
+
+  data.sort((a, b) => {
+    let va = sortCol === 'score' ? a.sig.score : a[sortCol];
+    let vb = sortCol === 'score' ? b.sig.score : b[sortCol];
+    if (typeof va === 'string') return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    va = va ?? -Infinity; vb = vb ?? -Infinity;
+    return sortAsc ? va - vb : vb - va;
+  });
+
+  document.getElementById('sig-info').textContent = `Showing ${data.length} signals`;
+
+  const strengthBadge = (s) => {
+    const map = { STRONG: ['var(--green-bg)','var(--green)'], MODERATE: ['var(--yellow-bg)','var(--yellow)'], NEUTRAL: ['var(--surface3)','var(--text3)'] };
+    const [bg, color] = map[s] || map.NEUTRAL;
+    return `<span style="background:${bg};color:${color};padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">${s}</span>`;
+  };
+
+  document.getElementById('sig-tbody').innerHTML = data.map(s => `
+    <tr onclick="UI.showStockModal('${s.symbol}')" style="cursor:pointer">
+      <td class="td-symbol">${s.symbol}</td>
+      <td class="td-name">${s.name}</td>
+      <td class="num">${API.Utils.fmt(s.ltp)}</td>
+      <td class="num">
+        <div class="change-cell ${API.Utils.clsName(s.chgPct)}">
+          ${API.Utils.arrow(s.chg)} ${API.Utils.fmt(Math.abs(s.chgPct))}%
+        </div>
+      </td>
+      <td>${UI.signalBadge(s.sig.signal)}</td>
+      <td>${UI.accumulationBar(s.sig.score)}</td>
+      <td>${strengthBadge(s.sig.strength)}</td>
+      <td style="font-size:12px;color:var(--text2);white-space:nowrap">${s.sig.zone}</td>
+      <td style="font-size:12px;color:var(--green);white-space:nowrap">${s.sig.target || '—'}</td>
+      <td style="font-size:12px;color:var(--red);white-space:nowrap">${s.sig.stopLoss || '—'}</td>
+      <td style="font-size:11px;color:var(--text3);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.sig.reason}</td>
+      <td onclick="event.stopPropagation()" style="white-space:nowrap">
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-xs ${s.sig.signal==='BUY'?'btn-success':'btn-ghost'}"
+            onclick="UI.addToWatchlist('${s.symbol}')">+Watch</button>
+          <button class="btn btn-xs btn-ghost"
+            onclick="openAlertModal('${s.symbol}')">🔔</button>
+        </div>
+      </td>
+    </tr>
+  `).join('') || `<tr><td colspan="12" style="text-align:center;padding:28px;color:var(--text3)">No signals match this filter</td></tr>`;
+}
+</script>
+</body>
+</html>

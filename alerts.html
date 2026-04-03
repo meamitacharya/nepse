@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Alerts — NEPSE Smart</title>
+<link rel="stylesheet" href="assets/css/main.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <header class="topbar">
+    <div class="topbar-logo"><div class="logo-icon">NS</div><div class="logo-text">NEPSE<span>Smart</span></div></div>
+    <div class="topbar-ticker"><div class="ticker-inner" id="ticker-inner"><div class="ticker-item"><span class="ticker-sym">Loading…</span></div></div></div>
+    <div class="topbar-right">
+      <div class="market-status"><div class="status-dot" id="market-dot"></div><span id="market-text">…</span></div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-data)" id="last-updated">—</div>
+      <div class="avatar">A</div>
+    </div>
+  </header>
+  <aside class="sidebar">
+    <nav>
+      <div class="nav-section">
+        <div class="nav-section-label">Market</div>
+        <a class="nav-item" href="index.html"><span class="nav-icon">📊</span> Dashboard</a>
+        <a class="nav-item" href="signals.html"><span class="nav-icon">🎯</span> Buy/Sell Signals</a>
+        <a class="nav-item" href="broker.html"><span class="nav-icon">🏦</span> Broker Tracker</a>
+        <a class="nav-item" href="sectors.html"><span class="nav-icon">🔄</span> Sector Rotation</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">My Money</div>
+        <a class="nav-item" href="portfolio.html"><span class="nav-icon">💼</span> My Portfolio</a>
+        <a class="nav-item" href="watchlist.html"><span class="nav-icon">👁️</span> Watchlist</a>
+        <a class="nav-item active" href="alerts.html"><span class="nav-icon">🔔</span> Price Alerts</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" href="ipo.html"><span class="nav-icon">🚀</span> IPO Analyzer</a>
+        <a class="nav-item" href="calendar.html"><span class="nav-icon">📅</span> Bonus Calendar</a>
+        <a class="nav-item" href="calculator.html"><span class="nav-icon">🧮</span> Return Calculator</a>
+        <a class="nav-item" href="chat.html"><span class="nav-icon">🤖</span> AI Chat</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="upgrade-card"><p>📱 Get SMS alerts to your phone (Pro feature)</p><button class="btn-upgrade">Upgrade to Pro</button></div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div id="demo-disc"></div>
+    <div class="page-header">
+      <div>
+        <div class="page-title">Price <span>Alerts</span></div>
+        <div class="page-sub">Set alerts for price levels and broker activity</div>
+      </div>
+      <button class="btn btn-primary" onclick="Modal.open('add-alert-modal')">+ New Alert</button>
+    </div>
+
+    <!-- Alert Types Info -->
+    <div class="grid-3 mb-24">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+        <div style="font-size:20px;margin-bottom:8px">💰</div>
+        <div style="font-weight:600;margin-bottom:4px">Price Alert</div>
+        <div style="font-size:12px;color:var(--text2)">Get notified when a stock reaches your target buy or sell price</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+        <div style="font-size:20px;margin-bottom:8px">🏦</div>
+        <div style="font-weight:600;margin-bottom:4px">Broker Accumulation Alert</div>
+        <div style="font-size:12px;color:var(--text2)">Get notified when smart money brokers start accumulating a stock</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+        <div style="font-size:20px;margin-bottom:8px">📊</div>
+        <div style="font-weight:600;margin-bottom:4px">More alert types coming soon</div>
+        <div style="font-size:12px;color:var(--text2)">Volume spike, % change, circuit breaker alerts (Pro)</div>
+      </div>
+    </div>
+
+    <!-- Active Alerts -->
+    <div class="card mb-24">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">🔔</span> Active Alerts (<span id="active-count">0</span>)</div>
+      </div>
+      <div id="alerts-list"></div>
+    </div>
+
+    <!-- Triggered History -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">📋</span> Alert History</div>
+        <button class="btn btn-ghost btn-sm" onclick="clearHistory()">Clear History</button>
+      </div>
+      <div id="alert-history"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ADD ALERT MODAL -->
+<div class="modal-overlay" id="add-alert-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Create New Alert</div>
+      <button class="modal-close" onclick="Modal.close('add-alert-modal')">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Stock Symbol *</label>
+        <select class="select" id="a-symbol" style="width:100%">
+          <option value="">Select stock…</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Alert Type *</label>
+        <select class="select" id="a-type" style="width:100%" onchange="togglePriceField()">
+          <option value="above">Price goes ABOVE (target sell)</option>
+          <option value="below">Price goes BELOW (buy opportunity)</option>
+          <option value="broker_accum">Smart money accumulation detected</option>
+        </select>
+      </div>
+      <div id="price-field">
+        <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Target Price (Rs.) *</label>
+        <input type="number" class="input" id="a-price" placeholder="e.g. 310.00" step="0.01"/>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px" id="current-price-hint">
+          Current price: loading…
+        </div>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Alert once or repeat?</label>
+        <select class="select" id="a-once" style="width:100%">
+          <option value="1">Alert once (auto-deactivate)</option>
+          <option value="0">Keep alerting every check</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="Modal.close('add-alert-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveAlert()">Create Alert</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+let alertHistory = JSON.parse(localStorage.getItem('ns_alert_history') || '[]');
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('demo-disc').innerHTML = UI.demoDisclaimer();
+  await API.init();
+  API.Bus.on('data:updated', render);
+  API.Bus.on('alert:triggered', onAlertTriggered);
+
+  const sel = document.getElementById('a-symbol');
+  NEPSE.stocks.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.symbol;
+    opt.textContent = `${s.symbol} — ${API.Utils.fmt(s.ltp)} Rs.`;
+    sel.appendChild(opt);
+  });
+
+  document.getElementById('a-symbol').addEventListener('change', function() {
+    const s = NEPSE.stocks.find(x => x.symbol === this.value);
+    if (s) document.getElementById('current-price-hint').textContent =
+      `Current price: Rs. ${API.Utils.fmt(s.ltp)}`;
+  });
+});
+
+function render(data) {
+  UI.updateTicker(data.stocks);
+  UI.updateMarketStatusBar(data.isMarketOpen);
+  UI.updateTimestamp();
+  renderAlerts();
+}
+
+function togglePriceField() {
+  const type = document.getElementById('a-type').value;
+  document.getElementById('price-field').style.display =
+    type === 'broker_accum' ? 'none' : 'block';
+}
+
+function saveAlert() {
+  const sym   = document.getElementById('a-symbol').value;
+  const type  = document.getElementById('a-type').value;
+  const price = parseFloat(document.getElementById('a-price').value);
+  const once  = document.getElementById('a-once').value === '1';
+
+  if (!sym) { Toast.warn('Validation', 'Please select a stock'); return; }
+  if (type !== 'broker_accum' && (!price || isNaN(price))) {
+    Toast.warn('Validation', 'Please enter a target price'); return;
+  }
+
+  const alert = {
+    id: Date.now(),
+    symbol: sym,
+    type,
+    price: type !== 'broker_accum' ? price : null,
+    once,
+    active: true,
+    createdAt: new Date().toISOString(),
+  };
+
+  NEPSE.alerts.push(alert);
+  API.saveAlerts();
+  Modal.close('add-alert-modal');
+
+  const msg = type === 'broker_accum'
+    ? `Alert set for smart money accumulation on ${sym}`
+    : `Alert set: ${sym} ${type} Rs. ${API.Utils.fmt(price)}`;
+  Toast.info('Alert Created', msg);
+  renderAlerts();
+}
+
+function deleteAlert(id) {
+  NEPSE.alerts = NEPSE.alerts.filter(a => a.id !== id);
+  API.saveAlerts();
+  renderAlerts();
+  Toast.info('Alert Removed', 'Alert has been deleted');
+}
+
+function toggleAlert(id) {
+  const a = NEPSE.alerts.find(x => x.id === id);
+  if (a) { a.active = !a.active; API.saveAlerts(); renderAlerts(); }
+}
+
+function renderAlerts() {
+  const active = NEPSE.alerts.filter(a => a.active);
+  const inactive = NEPSE.alerts.filter(a => !a.active);
+  document.getElementById('active-count').textContent = active.length;
+
+  const renderAlert = (a) => {
+    const s = NEPSE.stocks.find(x => x.symbol === a.symbol);
+    const typeLabel = {
+      above: `📈 Price above Rs. ${API.Utils.fmt(a.price)}`,
+      below: `📉 Price below Rs. ${API.Utils.fmt(a.price)}`,
+      broker_accum: '🏦 Smart money accumulation',
+    };
+    const currentPrice = s ? `Rs. ${API.Utils.fmt(s.ltp)}` : '—';
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        padding:12px;background:var(--surface2);border-radius:var(--r-md);margin-bottom:8px;
+        border:1px solid ${a.active?'var(--border)':'rgba(80,96,112,.2)'}">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="font-size:20px">${a.active?'🔔':'🔕'}</div>
+          <div>
+            <div style="font-weight:700;color:var(--primary)">${a.symbol}
+              <span style="color:var(--text3);font-weight:400;font-size:12px"> · Now: ${currentPrice}</span>
+            </div>
+            <div style="font-size:12px;color:var(--text2)">${typeLabel[a.type]}</div>
+            <div style="font-size:11px;color:var(--text3)">${a.once?'Alerts once':'Repeating'}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn btn-xs btn-ghost" onclick="toggleAlert(${a.id})">
+            ${a.active ? 'Pause' : 'Resume'}
+          </button>
+          <button class="btn btn-xs btn-danger" onclick="deleteAlert(${a.id})">Delete</button>
+        </div>
+      </div>
+    `;
+  };
+
+  const allHtml = [...active, ...inactive].map(renderAlert).join('');
+  document.getElementById('alerts-list').innerHTML = allHtml ||
+    `<div class="empty-state"><div class="icon">🔔</div><p>No alerts yet. Create one to get notified.</p></div>`;
+
+  // History
+  document.getElementById('alert-history').innerHTML = alertHistory.length
+    ? alertHistory.slice(-20).reverse().map(h => `
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <span class="up" style="font-weight:700">${h.symbol}</span>
+            <span style="font-size:12px;color:var(--text2);margin-left:8px">${h.msg}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text3)">${new Date(h.at).toLocaleString('en-IN')}</div>
+        </div>
+      `).join('')
+    : `<div class="empty-state"><div class="icon">📋</div><p>No alerts triggered yet</p></div>`;
+}
+
+function onAlertTriggered({ alert, stock }) {
+  alertHistory.push({
+    symbol: alert.symbol,
+    msg: `${alert.type === 'broker_accum' ? 'Smart money accumulation detected' : `Price ${alert.type} Rs. ${API.Utils.fmt(alert.price)}`} — Now: Rs. ${API.Utils.fmt(stock.ltp)}`,
+    at: new Date().toISOString(),
+  });
+  localStorage.setItem('ns_alert_history', JSON.stringify(alertHistory));
+  renderAlerts();
+}
+
+function clearHistory() {
+  if (confirm('Clear all alert history?')) {
+    alertHistory = [];
+    localStorage.setItem('ns_alert_history', '[]');
+    renderAlerts();
+  }
+}
+
+window.alertModal = (sym) => {
+  document.getElementById('a-symbol').value = sym;
+  Modal.open('add-alert-modal');
+};
+</script>
+</body>
+</html>

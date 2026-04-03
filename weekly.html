@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Weekly Briefing — NEPSE Smart</title>
+<link rel="stylesheet" href="assets/css/main.css"/>
+<style>
+.brief-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:16px}
+.brief-section h3{font-size:15px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.brief-body{font-size:13.5px;color:var(--text2);line-height:1.8}
+.brief-body strong{color:var(--text)}
+.brief-body .highlight{background:var(--yellow-bg);color:var(--yellow);padding:2px 7px;border-radius:4px;font-weight:600}
+.brief-body .up-tag{background:var(--green-bg);color:var(--green);padding:2px 7px;border-radius:4px;font-weight:600}
+.brief-body .dn-tag{background:var(--red-bg);color:var(--red);padding:2px 7px;border-radius:4px;font-weight:600}
+.loading-gif{text-align:center;padding:32px;color:var(--text3)}
+.gen-btn{width:100%}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <header class="topbar">
+    <div class="topbar-logo"><div class="logo-icon">NS</div><div class="logo-text">NEPSE<span>Smart</span></div></div>
+    <div class="topbar-ticker"><div class="ticker-inner" id="ticker-inner"><div class="ticker-item"><span class="ticker-sym">Loading…</span></div></div></div>
+    <div class="topbar-right">
+      <div class="market-status"><div class="status-dot" id="market-dot"></div><span id="market-text">…</span></div>
+      <div class="avatar">A</div>
+    </div>
+  </header>
+  <aside class="sidebar">
+    <nav>
+      <div class="nav-section">
+        <div class="nav-section-label">Market</div>
+        <a class="nav-item" href="index.html"><span class="nav-icon">📊</span> Dashboard</a>
+        <a class="nav-item" href="signals.html"><span class="nav-icon">🎯</span> Buy/Sell Signals</a>
+        <a class="nav-item" href="broker.html"><span class="nav-icon">🏦</span> Broker Tracker</a>
+        <a class="nav-item" href="sectors.html"><span class="nav-icon">🔄</span> Sector Rotation</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">My Money</div>
+        <a class="nav-item" href="portfolio.html"><span class="nav-icon">💼</span> My Portfolio</a>
+        <a class="nav-item" href="watchlist.html"><span class="nav-icon">👁️</span> Watchlist</a>
+        <a class="nav-item" href="alerts.html"><span class="nav-icon">🔔</span> Price Alerts</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" href="ipo.html"><span class="nav-icon">🚀</span> IPO Analyzer</a>
+        <a class="nav-item" href="calendar.html"><span class="nav-icon">📅</span> Bonus Calendar</a>
+        <a class="nav-item" href="calculator.html"><span class="nav-icon">🧮</span> Return Calculator</a>
+        <a class="nav-item" href="chat.html"><span class="nav-icon">🤖</span> AI Chat</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Learn</div>
+        <a class="nav-item active" href="weekly.html"><span class="nav-icon">📰</span> Weekly Briefing</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="upgrade-card"><p>📧 Auto-email every Sunday morning (Pro)</p><button class="btn-upgrade">Upgrade to Pro</button></div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div id="demo-disc"></div>
+    <div class="page-header">
+      <div>
+        <div class="page-title">Weekly Market <span>Briefing</span></div>
+        <div class="page-sub">AI-generated market summary — plain language, no jargon</div>
+      </div>
+      <button class="btn btn-primary" id="gen-btn" onclick="generateBriefing()">
+        🤖 Generate This Week's Briefing
+      </button>
+    </div>
+
+    <div id="briefing-area">
+      <div style="background:var(--surface);border:1px dashed var(--border);border-radius:var(--r-xl);padding:48px;text-align:center;color:var(--text3)">
+        <div style="font-size:40px;margin-bottom:12px">📰</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:8px">Your weekly market briefing</div>
+        <div style="font-size:13px;margin-bottom:20px">Click "Generate" to get a plain-language AI summary of NEPSE market conditions, top signals, and what to watch this week.</div>
+        <button class="btn btn-primary" onclick="generateBriefing()">🤖 Generate Briefing</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('demo-disc').innerHTML = UI.demoDisclaimer();
+  await API.init();
+  API.Bus.on('data:updated', d => { UI.updateTicker(d.stocks); UI.updateMarketStatusBar(d.isMarketOpen); });
+});
+
+async function generateBriefing() {
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true; btn.textContent = '⏳ Generating…';
+  document.getElementById('briefing-area').innerHTML = `
+    <div class="loading-gif">
+      <div style="font-size:32px;margin-bottom:12px;animation:spin 1s linear infinite;display:inline-block">⚙️</div>
+      <div>AI is analyzing today's market data…</div>
+    </div>`;
+
+  const stocks   = NEPSE.stocks;
+  const brokers  = NEPSE.brokerData;
+  const bursts   = API.detectBurstCandidates(stocks, brokers);
+  const sectors  = API.analyzeSectorRotation(stocks);
+  const topGain  = [...stocks].sort((a,b)=>b.chgPct-a.chgPct).slice(0,5);
+  const topLoss  = [...stocks].sort((a,b)=>a.chgPct-b.chgPct).slice(0,5);
+  const portfolio = API.calcPortfolio();
+
+  const prompt = `
+You are writing a friendly weekly NEPSE market briefing for a Nepali retail investor (beginner level).
+
+MARKET DATA:
+- NEPSE Index: ${API.Utils.fmt(NEPSE.indices.nepse?.value)} (${NEPSE.indices.nepse?.pct>=0?'+':''}${API.Utils.fmt(NEPSE.indices.nepse?.pct)}% today)
+- Advances: ${NEPSE.indices.advances} | Declines: ${NEPSE.indices.declines}
+- Total Turnover: ${API.Utils.fmtCr(NEPSE.indices.turnover)}
+
+TOP GAINERS: ${topGain.map(s=>s.symbol+' +'+API.Utils.fmt(s.chgPct)+'%').join(', ')}
+TOP LOSERS: ${topLoss.map(s=>s.symbol+' '+API.Utils.fmt(s.chgPct)+'%').join(', ')}
+
+HOT SECTORS: ${sectors.slice(0,3).map(s=>`${s.name} (${s.avgChg>=0?'+':''}${API.Utils.fmt(s.avgChg)}%)`).join(', ')}
+COLD SECTORS: ${sectors.slice(-2).map(s=>`${s.name} (${API.Utils.fmt(s.avgChg)}%)`).join(', ')}
+
+BREAKOUT CANDIDATES (smart money accumulating):
+${bursts.map(b=>`- ${b.symbol}: ${b.days} days accumulation, Score ${b.score}/100, Target Rs.${b.priceTarget}`).join('\n')}
+
+${portfolio.length ? `USER PORTFOLIO: ${portfolio.map(h=>`${h.symbol} P&L ${h.pnl>=0?'+':''}Rs.${API.Utils.fmtI(Math.abs(h.pnl))} (${API.Utils.fmt(h.pnlPct)}%)`).join(', ')}` : ''}
+
+Write a weekly briefing with these EXACT sections (use bold headers):
+1. **📊 Market Summary** — 2-3 sentences on overall market mood
+2. **🔥 This Week's Hot Sectors** — Which sectors are heating up and why
+3. **💥 Stocks to Watch** — 3 stocks with clear buy reasoning (from breakout candidates)
+4. **⚠️ Stocks to Be Careful With** — 2 stocks showing exit signals
+5. **💼 Your Portfolio This Week** — Comment on user's holdings if any (skip if no portfolio)
+6. **📅 Important Upcoming Events** — Mention book closures, IPOs if relevant
+7. **🧠 Tip of the Week** — One actionable investing tip for beginners
+
+Write in plain language. No jargon. Be specific with prices. Keep it under 600 words. Use simple English that a Nepali beginner investor can understand.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+
+    // Format the response
+    const html = text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .split('\n\n')
+      .map(para => {
+        if (para.trim().startsWith('<strong>')) {
+          return `<div class="brief-section"><h3>${para.replace(/<strong>(.*?)<\/strong>/, '$1')}</h3><div class="brief-body">${para.replace(/^<strong>.*?<\/strong>\s*/, '').replace(/\n/g,'<br>')}</div></div>`;
+        }
+        return `<div class="brief-body" style="margin-bottom:12px">${para.replace(/\n/g,'<br>')}</div>`;
+      }).join('');
+
+    document.getElementById('briefing-area').innerHTML = `
+      <div style="background:var(--surface2);border-radius:var(--r-lg);padding:14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:600">Weekly Briefing — Generated by AI</div>
+          <div style="font-size:11px;color:var(--text3)">Based on today's live market data · ${new Date().toLocaleDateString('en-IN')}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="generateBriefing()">↻ Regenerate</button>
+      </div>
+      ${html}
+      <div style="background:var(--yellow-bg);border:1px solid rgba(245,158,11,.2);border-radius:var(--r-md);padding:12px;font-size:12px;color:var(--yellow);margin-top:16px">
+        ⚠️ This briefing is AI-generated for educational purposes. Always verify information and consult a financial advisor before making investment decisions.
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById('briefing-area').innerHTML = `
+      <div style="background:var(--red-bg);border:1px solid rgba(239,68,68,.3);border-radius:var(--r-lg);padding:20px;color:var(--red)">
+        ❌ Could not generate briefing. Check your internet connection.<br>
+        <button class="btn btn-ghost btn-sm mt-16" onclick="generateBriefing()">Try Again</button>
+      </div>`;
+  }
+
+  btn.disabled = false; btn.textContent = '🤖 Regenerate Briefing';
+}
+</script>
+</body>
+</html>

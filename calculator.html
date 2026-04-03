@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Return Calculator — NEPSE Smart</title>
+<link rel="stylesheet" href="assets/css/main.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <header class="topbar">
+    <div class="topbar-logo"><div class="logo-icon">NS</div><div class="logo-text">NEPSE<span>Smart</span></div></div>
+    <div class="topbar-ticker"><div class="ticker-inner" id="ticker-inner"><div class="ticker-item"><span class="ticker-sym">Loading…</span></div></div></div>
+    <div class="topbar-right">
+      <div class="market-status"><div class="status-dot" id="market-dot"></div><span id="market-text">…</span></div>
+      <div class="avatar">A</div>
+    </div>
+  </header>
+  <aside class="sidebar">
+    <nav>
+      <div class="nav-section">
+        <div class="nav-section-label">Market</div>
+        <a class="nav-item" href="index.html"><span class="nav-icon">📊</span> Dashboard</a>
+        <a class="nav-item" href="signals.html"><span class="nav-icon">🎯</span> Buy/Sell Signals</a>
+        <a class="nav-item" href="broker.html"><span class="nav-icon">🏦</span> Broker Tracker</a>
+        <a class="nav-item" href="sectors.html"><span class="nav-icon">🔄</span> Sector Rotation</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">My Money</div>
+        <a class="nav-item" href="portfolio.html"><span class="nav-icon">💼</span> My Portfolio</a>
+        <a class="nav-item" href="watchlist.html"><span class="nav-icon">👁️</span> Watchlist</a>
+        <a class="nav-item" href="alerts.html"><span class="nav-icon">🔔</span> Price Alerts</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" href="ipo.html"><span class="nav-icon">🚀</span> IPO Analyzer</a>
+        <a class="nav-item" href="calendar.html"><span class="nav-icon">📅</span> Bonus Calendar</a>
+        <a class="nav-item active" href="calculator.html"><span class="nav-icon">🧮</span> Return Calculator</a>
+        <a class="nav-item" href="chat.html"><span class="nav-icon">🤖</span> AI Chat</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Learn</div>
+        <a class="nav-item" href="weekly.html"><span class="nav-icon">📰</span> Weekly Briefing</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="upgrade-card"><p>🔓 Advanced calculators — Tax, CAGR, DCA</p><button class="btn-upgrade">Upgrade to Pro</button></div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div id="demo-disc"></div>
+    <div class="page-header">
+      <div>
+        <div class="page-title">Return <span>Calculator</span></div>
+        <div class="page-sub">Calculate profit, tax, SEBON charges, and break-even price</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- TRADE CALCULATOR -->
+      <div class="card">
+        <div class="card-title mb-16"><span class="icon">💹</span> Trade P&L Calculator</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div>
+            <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Stock Symbol (optional)</label>
+            <select class="select" id="c-symbol" style="width:100%" onchange="autofillPrice()">
+              <option value="">Select or enter manually…</option>
+            </select>
+          </div>
+          <div class="grid-2 gap-12">
+            <div>
+              <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Buy Price (Rs.) *</label>
+              <input type="number" class="input" id="c-buy" placeholder="e.g. 310" oninput="calculate()"/>
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Units *</label>
+              <input type="number" class="input" id="c-units" placeholder="e.g. 100" oninput="calculate()"/>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Sell / Target Price (Rs.) *</label>
+            <input type="number" class="input" id="c-sell" placeholder="e.g. 380" oninput="calculate()"/>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Holding Period</label>
+            <select class="select" id="c-period" style="width:100%" onchange="calculate()">
+              <option value="short">Less than 365 days (Short-term — 7.5% tax)</option>
+              <option value="long">More than 365 days (Long-term — 5% tax)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div id="calc-result" style="margin-top:18px;display:none">
+          <div style="border-top:1px solid var(--border);padding-top:16px">
+            <div style="font-weight:600;margin-bottom:12px">📊 Detailed Breakdown</div>
+            <div id="breakdown"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BREAK-EVEN CALCULATOR -->
+      <div>
+        <div class="card mb-16">
+          <div class="card-title mb-16"><span class="icon">⚖️</span> Break-Even Calculator</div>
+          <div style="font-size:12.5px;color:var(--text2);margin-bottom:12px">
+            What price must you sell at to just break even (after broker + SEBON charges)?
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Buy Price (Rs.)</label>
+              <input type="number" class="input" id="be-buy" placeholder="e.g. 310" oninput="calcBreakeven()"/>
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Units</label>
+              <input type="number" class="input" id="be-units" placeholder="e.g. 100" oninput="calcBreakeven()"/>
+            </div>
+          </div>
+          <div id="be-result" style="margin-top:14px;display:none"></div>
+        </div>
+
+        <!-- CHARGE REFERENCE -->
+        <div class="card">
+          <div class="card-title mb-12"><span class="icon">📋</span> NEPSE Charges Reference</div>
+          <div style="font-size:12.5px">
+            ${[
+              ['Broker Commission','0.4% of trade value (buy + sell separately)'],
+              ['SEBON Fee','0.015% of trade value'],
+              ['DP Charge','Rs. 25 per transaction (DP/CDSC)'],
+              ['Capital Gain Tax','7.5% (short-term < 365d) · 5% (long-term)'],
+              ['Dividend Tax','5% (listed companies)'],
+              ['TDS on Dividend','5% withheld at source'],
+            ].map(([label,val]) => `
+              <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+                <span style="color:var(--text2)">${label}</span>
+                <span style="font-family:var(--font-data);font-size:12px;font-weight:500">${val}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+// NEPSE charge rates (as of 2024)
+const BROKER_RATE = 0.004;   // 0.4%
+const SEBON_RATE  = 0.00015; // 0.015%
+const DP_CHARGE   = 25;      // Rs. 25 per transaction
+const CGT_SHORT   = 0.075;   // 7.5%
+const CGT_LONG    = 0.05;    // 5%
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('demo-disc').innerHTML = UI.demoDisclaimer();
+  await API.init();
+  API.Bus.on('data:updated', d => {
+    UI.updateTicker(d.stocks); UI.updateMarketStatusBar(d.isMarketOpen);
+    const sel = document.getElementById('c-symbol');
+    if (sel.options.length <= 1) {
+      d.stocks.forEach(s => {
+        const o = document.createElement('option'); o.value = s.symbol;
+        o.textContent = `${s.symbol} — Rs. ${API.Utils.fmt(s.ltp)}`; sel.appendChild(o);
+      });
+    }
+  });
+});
+
+function autofillPrice() {
+  const sym = document.getElementById('c-symbol').value;
+  if (!sym) return;
+  const s = NEPSE.stocks.find(x => x.symbol === sym);
+  if (s) {
+    document.getElementById('c-buy').value = s.ltp;
+    calculate();
+  }
+}
+
+function calcCharges(price, units) {
+  const value    = price * units;
+  const broker   = value * BROKER_RATE;
+  const sebon    = value * SEBON_RATE;
+  const dp       = DP_CHARGE;
+  const total    = broker + sebon + dp;
+  return { value, broker, sebon, dp, total };
+}
+
+function calculate() {
+  const buy    = parseFloat(document.getElementById('c-buy').value);
+  const sell   = parseFloat(document.getElementById('c-sell').value);
+  const units  = parseInt(document.getElementById('c-units').value);
+  const period = document.getElementById('c-period').value;
+  const cgt    = period === 'short' ? CGT_SHORT : CGT_LONG;
+
+  if (!buy || !sell || !units || buy <= 0 || units <= 0) {
+    document.getElementById('calc-result').style.display = 'none';
+    return;
+  }
+
+  const buyCharges  = calcCharges(buy, units);
+  const sellCharges = calcCharges(sell, units);
+  const grossProfit = (sell - buy) * units;
+  const tax         = grossProfit > 0 ? grossProfit * cgt : 0;
+  const totalCost   = buyCharges.total + sellCharges.total + tax;
+  const netProfit   = grossProfit - totalCost;
+  const netReturn   = (netProfit / buyCharges.value) * 100;
+  const isProfit    = netProfit >= 0;
+
+  const row = (label, value, color='') => `
+    <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span style="color:var(--text2)">${label}</span>
+      <span style="font-family:var(--font-data);font-weight:600;${color?'color:'+color:''}">${value}</span>
+    </div>
+  `;
+
+  document.getElementById('breakdown').innerHTML = `
+    ${row('Buy Value ('+units+' × Rs.'+buy+')', 'Rs. '+API.Utils.fmtI(buyCharges.value))}
+    ${row('Sell Value ('+units+' × Rs.'+sell+')', 'Rs. '+API.Utils.fmtI(sellCharges.value))}
+    ${row('Gross Profit/Loss', (grossProfit>=0?'+':'')+' Rs. '+API.Utils.fmtI(Math.abs(grossProfit)), grossProfit>=0?'var(--green)':'var(--red)')}
+    <div style="padding:6px 0;font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Charges</div>
+    ${row('Buy Broker (0.4%)', '− Rs. '+API.Utils.fmt(buyCharges.broker))}
+    ${row('Sell Broker (0.4%)', '− Rs. '+API.Utils.fmt(sellCharges.broker))}
+    ${row('SEBON Fee (buy+sell)', '− Rs. '+API.Utils.fmt(buyCharges.sebon+sellCharges.sebon))}
+    ${row('DP/CDSC Charges', '− Rs. '+(DP_CHARGE*2))}
+    ${grossProfit > 0 ? row('Capital Gain Tax ('+(cgt*100)+'%)', '− Rs. '+API.Utils.fmtI(tax), 'var(--red)') : ''}
+    <div style="display:flex;justify-content:space-between;padding:12px 0;margin-top:4px;border-top:2px solid var(--border2)">
+      <span style="font-weight:700;font-size:15px">Net Profit / Loss</span>
+      <span style="font-family:var(--font-data);font-size:18px;font-weight:700;color:${isProfit?'var(--green)':'var(--red)'}">${isProfit?'+':'−'} Rs. ${API.Utils.fmtI(Math.abs(netProfit))}</span>
+    </div>
+    <div style="text-align:right;font-size:13px;color:${isProfit?'var(--green)':'var(--red)'};font-weight:600">
+      Net Return: ${netReturn>=0?'+':''}${API.Utils.fmt(netReturn)}%
+    </div>
+  `;
+  document.getElementById('calc-result').style.display = 'block';
+}
+
+function calcBreakeven() {
+  const buy   = parseFloat(document.getElementById('be-buy').value);
+  const units = parseInt(document.getElementById('be-units').value);
+  if (!buy || !units) { document.getElementById('be-result').style.display='none'; return; }
+
+  const buyValue    = buy * units;
+  const buyBroker   = buyValue * BROKER_RATE;
+  const buySebon    = buyValue * SEBON_RATE;
+  const totalBuyCost = buyBroker + buySebon + DP_CHARGE;
+
+  // Solve: sell*units - sell*units*(BROKER_RATE+SEBON_RATE) - DP_CHARGE = buyValue + totalBuyCost
+  // sell * units * (1 - BROKER_RATE - SEBON_RATE) = buyValue + totalBuyCost + DP_CHARGE
+  const netRate   = 1 - BROKER_RATE - SEBON_RATE;
+  const target    = buyValue + totalBuyCost + DP_CHARGE;
+  const breakeven = target / (units * netRate);
+  const premium   = ((breakeven - buy) / buy) * 100;
+
+  document.getElementById('be-result').innerHTML = `
+    <div style="background:var(--blue-bg);border:1px solid rgba(59,130,246,.25);border-radius:var(--r-md);padding:14px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Break-even sell price (after all charges)</div>
+      <div style="font-family:var(--font-data);font-size:28px;font-weight:500;color:var(--primary)">
+        Rs. ${API.Utils.fmt(breakeven)}
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">
+        You need to sell at +${API.Utils.fmt(premium)}% above your buy price just to break even
+      </div>
+    </div>
+  `;
+  document.getElementById('be-result').style.display = 'block';
+}
+</script>
+</body>
+</html>

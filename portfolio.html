@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>My Portfolio — NEPSE Smart</title>
+<link rel="stylesheet" href="assets/css/main.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <header class="topbar">
+    <div class="topbar-logo">
+      <div class="logo-icon">NS</div>
+      <div class="logo-text">NEPSE<span>Smart</span></div>
+    </div>
+    <div class="topbar-ticker"><div class="ticker-inner" id="ticker-inner"><div class="ticker-item"><span class="ticker-sym">Loading…</span></div></div></div>
+    <div class="topbar-right">
+      <div class="market-status"><div class="status-dot" id="market-dot"></div><span id="market-text">…</span></div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-data)" id="last-updated">—</div>
+      <div class="avatar">A</div>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <nav>
+      <div class="nav-section">
+        <div class="nav-section-label">Market</div>
+        <a class="nav-item" href="index.html"><span class="nav-icon">📊</span> Dashboard</a>
+        <a class="nav-item" href="signals.html"><span class="nav-icon">🎯</span> Buy/Sell Signals</a>
+        <a class="nav-item" href="broker.html"><span class="nav-icon">🏦</span> Broker Tracker</a>
+        <a class="nav-item" href="sectors.html"><span class="nav-icon">🔄</span> Sector Rotation</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">My Money</div>
+        <a class="nav-item active" href="portfolio.html"><span class="nav-icon">💼</span> My Portfolio</a>
+        <a class="nav-item" href="watchlist.html"><span class="nav-icon">👁️</span> Watchlist</a>
+        <a class="nav-item" href="alerts.html"><span class="nav-icon">🔔</span> Price Alerts</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" href="ipo.html"><span class="nav-icon">🚀</span> IPO Analyzer</a>
+        <a class="nav-item" href="calendar.html"><span class="nav-icon">📅</span> Bonus Calendar</a>
+        <a class="nav-item" href="calculator.html"><span class="nav-icon">🧮</span> Return Calculator</a>
+        <a class="nav-item" href="chat.html"><span class="nav-icon">🤖</span> AI Chat</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="upgrade-card">
+        <p>🔓 Get AI-powered portfolio advice and broker alerts</p>
+        <button class="btn-upgrade">Upgrade to Pro</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div id="demo-disc"></div>
+
+    <div class="page-header">
+      <div>
+        <div class="page-title">My <span>Portfolio</span></div>
+        <div class="page-sub">Track your investments, P&L and signals</div>
+      </div>
+      <button class="btn btn-primary" onclick="Modal.open('add-holding-modal')">
+        + Add Holding
+      </button>
+    </div>
+
+    <!-- Summary Row -->
+    <div class="grid-4 mb-24" id="port-summary"></div>
+
+    <!-- Holdings Table -->
+    <div class="card mb-24">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">📋</span> My Holdings</div>
+        <div style="font-size:12px;color:var(--text3)" id="last-updated-port">—</div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="holdings-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Company</th>
+              <th class="num">Units</th>
+              <th class="num">Avg Buy Price</th>
+              <th class="num">LTP</th>
+              <th class="num">Invested</th>
+              <th class="num">Current Value</th>
+              <th class="num">P&L (Rs.)</th>
+              <th class="num">P&L %</th>
+              <th>Signal</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="holdings-tbody">
+            <tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text3)">No holdings yet. Click "Add Holding" to start tracking.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Today's Portfolio Movement -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">📊</span> Today's Movement in Your Holdings</div>
+      </div>
+      <div id="today-movement"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ADD HOLDING MODAL -->
+<div class="modal-overlay" id="add-holding-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Holding</div>
+      <button class="modal-close" onclick="Modal.close('add-holding-modal')">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Stock Symbol *</label>
+        <select class="select" id="h-symbol" style="width:100%">
+          <option value="">Select stock…</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Number of Units *</label>
+        <input type="number" class="input" id="h-units" placeholder="e.g. 100" min="1"/>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Average Buy Price (Rs.) *</label>
+        <input type="number" class="input" id="h-price" placeholder="e.g. 310.50" min="0" step="0.01"/>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Notes (optional)</label>
+        <input type="text" class="input" id="h-notes" placeholder="e.g. Long term hold"/>
+      </div>
+      <div style="font-size:12px;color:var(--text3);background:var(--surface2);padding:10px;border-radius:var(--r-md)">
+        💡 Your portfolio data is saved locally in your browser. No account needed.
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="Modal.close('add-holding-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveHolding()">Add to Portfolio</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT HOLDING MODAL -->
+<div class="modal-overlay" id="edit-holding-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Holding — <span id="edit-sym"></span></div>
+      <button class="modal-close" onclick="Modal.close('edit-holding-modal')">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Units</label>
+        <input type="number" class="input" id="e-units" min="1"/>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Avg Buy Price (Rs.)</label>
+        <input type="number" class="input" id="e-price" step="0.01"/>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-danger btn-sm" onclick="deleteHolding(editSymbol)">Delete</button>
+        <button class="btn btn-ghost" onclick="Modal.close('edit-holding-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="updateHolding()">Update</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+let editSymbol = '';
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('demo-disc').innerHTML = UI.demoDisclaimer();
+  await API.init();
+  API.Bus.on('data:updated', render);
+  // Populate stock dropdown
+  const sel = document.getElementById('h-symbol');
+  NEPSE.stocks.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.symbol;
+    opt.textContent = `${s.symbol} — ${s.name}`;
+    sel.appendChild(opt);
+  });
+});
+
+function render(data) {
+  UI.updateTicker(data.stocks);
+  UI.updateMarketStatusBar(data.isMarketOpen);
+  UI.updateTimestamp();
+  renderPortfolio();
+}
+
+function renderPortfolio() {
+  const holdings = API.calcPortfolio();
+  const totalInvested = holdings.reduce((s,h) => s+h.invested, 0);
+  const totalCurrent  = holdings.reduce((s,h) => s+h.current, 0);
+  const totalPnl      = totalCurrent - totalInvested;
+  const todayPnl      = holdings.reduce((s,h) => s + (h.units * (h.chg||0)), 0);
+
+  // Summary
+  document.getElementById('port-summary').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Total Invested</div>
+      <div class="stat-value" style="font-size:20px">Rs. ${API.Utils.fmtI(totalInvested)}</div>
+      <div class="stat-change neu">${holdings.length} holdings</div>
+      <div class="stat-icon">💰</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Current Value</div>
+      <div class="stat-value" style="font-size:20px">Rs. ${API.Utils.fmtI(totalCurrent)}</div>
+      <div class="stat-change neu">Live updated</div>
+      <div class="stat-icon">📈</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total P&L</div>
+      <div class="stat-value" style="font-size:20px;color:${totalPnl>=0?'var(--green)':'var(--red)'}">
+        ${totalPnl>=0?'+':'−'} Rs. ${API.Utils.fmtI(Math.abs(totalPnl))}
+      </div>
+      <div class="stat-change ${totalPnl>=0?'up':'dn'}">
+        ${totalPnl>=0?'▲':'▼'} ${API.Utils.fmt(Math.abs(totalInvested?totalPnl/totalInvested*100:0))}%
+      </div>
+      <div class="stat-icon">💹</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Today's P&L</div>
+      <div class="stat-value" style="font-size:20px;color:${todayPnl>=0?'var(--green)':'var(--red)'}">
+        ${todayPnl>=0?'+':'−'} Rs. ${API.Utils.fmtI(Math.abs(todayPnl))}
+      </div>
+      <div class="stat-change ${todayPnl>=0?'up':'dn'}">${todayPnl>=0?'▲':'▼'} Today</div>
+      <div class="stat-icon">📅</div>
+    </div>
+  `;
+
+  if (!holdings.length) {
+    document.getElementById('holdings-tbody').innerHTML =
+      `<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text3)">
+        No holdings yet. Click "Add Holding" to start.
+      </td></tr>`;
+    document.getElementById('today-movement').innerHTML = '';
+    return;
+  }
+
+  document.getElementById('holdings-tbody').innerHTML = holdings.map(h => {
+    const pnlCls = h.pnl >= 0 ? 'up' : 'dn';
+    const sig = h.sig;
+    return `
+      <tr style="cursor:pointer" onclick="UI.showStockModal('${h.symbol}')">
+        <td class="td-symbol">${h.symbol}</td>
+        <td class="td-name">${h.name || h.symbol}</td>
+        <td class="num">${API.Utils.fmtI(h.units)}</td>
+        <td class="num">Rs. ${API.Utils.fmt(h.avgPrice)}</td>
+        <td class="num">${API.Utils.fmt(h.ltp)}</td>
+        <td class="num">Rs. ${API.Utils.fmtI(h.invested)}</td>
+        <td class="num">Rs. ${API.Utils.fmtI(h.current)}</td>
+        <td class="num ${pnlCls}">
+          ${h.pnl>=0?'+':'−'} Rs. ${API.Utils.fmtI(Math.abs(h.pnl))}
+        </td>
+        <td class="num ${pnlCls}">${h.pnlPct>=0?'+':''}${API.Utils.fmt(h.pnlPct)}%</td>
+        <td>${sig ? UI.signalBadge(sig.signal) : '—'}</td>
+        <td onclick="event.stopPropagation()">
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-xs btn-ghost" onclick="openEdit('${h.symbol}',${h.units},${h.avgPrice})">Edit</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Today's movement
+  document.getElementById('today-movement').innerHTML = holdings.map(h => {
+    const todayGain = h.units * (h.chg || 0);
+    const cls = h.chg >= 0 ? 'up' : 'dn';
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="font-weight:700;color:var(--primary);min-width:70px">${h.symbol}</div>
+          <div class="${cls}" style="font-family:var(--font-data);font-size:13px">
+            ${h.chg>=0?'+':''}${API.Utils.fmt(h.chg)} (${h.chgPct>=0?'+':''}${API.Utils.fmt(h.chgPct)}%)
+          </div>
+        </div>
+        <div class="${cls}" style="font-family:var(--font-data);font-weight:600">
+          ${todayGain>=0?'+':'−'} Rs. ${API.Utils.fmtI(Math.abs(todayGain))}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function saveHolding() {
+  const sym   = document.getElementById('h-symbol').value;
+  const units = parseInt(document.getElementById('h-units').value);
+  const price = parseFloat(document.getElementById('h-price').value);
+  const notes = document.getElementById('h-notes').value;
+  if (!sym || !units || !price) { Toast.warn('Validation', 'Please fill all required fields'); return; }
+  const existing = NEPSE.portfolio.findIndex(h => h.symbol === sym);
+  if (existing >= 0) {
+    // Merge: weighted average
+    const old = NEPSE.portfolio[existing];
+    const totalUnits = old.units + units;
+    const avgPrice   = (old.units * old.avgPrice + units * price) / totalUnits;
+    NEPSE.portfolio[existing] = { ...old, units: totalUnits, avgPrice: parseFloat(avgPrice.toFixed(2)), notes };
+    Toast.info('Portfolio Updated', `${sym} updated. Avg price: Rs. ${avgPrice.toFixed(2)}`);
+  } else {
+    NEPSE.portfolio.push({ symbol: sym, units, avgPrice: price, notes, addedAt: new Date().toISOString() });
+    Toast.buy('Holding Added', `${sym} × ${units} units at Rs. ${price}`);
+  }
+  API.savePortfolio();
+  Modal.close('add-holding-modal');
+  renderPortfolio();
+}
+
+function openEdit(sym, units, price) {
+  editSymbol = sym;
+  document.getElementById('edit-sym').textContent = sym;
+  document.getElementById('e-units').value = units;
+  document.getElementById('e-price').value = price;
+  Modal.open('edit-holding-modal');
+}
+
+function updateHolding() {
+  const units = parseInt(document.getElementById('e-units').value);
+  const price = parseFloat(document.getElementById('e-price').value);
+  if (!units || !price) { Toast.warn('Validation', 'Please enter valid values'); return; }
+  const idx = NEPSE.portfolio.findIndex(h => h.symbol === editSymbol);
+  if (idx >= 0) {
+    NEPSE.portfolio[idx].units    = units;
+    NEPSE.portfolio[idx].avgPrice = price;
+    API.savePortfolio();
+    Toast.info('Updated', `${editSymbol} holding updated`);
+    Modal.close('edit-holding-modal');
+    renderPortfolio();
+  }
+}
+
+function deleteHolding(sym) {
+  if (!confirm(`Remove ${sym} from portfolio?`)) return;
+  NEPSE.portfolio = NEPSE.portfolio.filter(h => h.symbol !== sym);
+  API.savePortfolio();
+  Modal.close('edit-holding-modal');
+  Toast.info('Removed', `${sym} removed from portfolio`);
+  renderPortfolio();
+}
+
+window.portfolioModal = (sym) => {
+  document.getElementById('h-symbol').value = sym;
+  Modal.open('add-holding-modal');
+};
+</script>
+</body>
+</html>
