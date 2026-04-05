@@ -666,15 +666,24 @@ function sortAndRenderFull() {
     </tr>
   `).join('');
 
-  // Pagination
+  // Pagination — with Prev/Next + page numbers
   let phtml = '';
-  for (let p = 1; p <= pages; p++) {
-    if (p === 1 || p === pages || Math.abs(p - fullTablePage) <= 1) {
-      phtml += `<button class="btn btn-xs btn-ghost ${p===fullTablePage?'btn-primary':''}"
-        onclick="fullTablePage=${p};sortAndRenderFull()">${p}</button>`;
-    } else if (Math.abs(p - fullTablePage) === 2) {
-      phtml += `<span style="color:var(--text3);padding:0 2px;font-size:12px">…</span>`;
-    }
+  // Prev button
+  if (fullTablePage > 1) {
+    phtml += `<button class="btn btn-xs btn-ghost" onclick="fullTablePage=${fullTablePage-1};sortAndRenderFull()">← Prev</button>`;
+  }
+  // Page numbers with smart ellipsis
+  const pageNums = new Set([1, pages, fullTablePage-1, fullTablePage, fullTablePage+1].filter(p => p >= 1 && p <= pages));
+  let lastP = 0;
+  [...pageNums].sort((a,b)=>a-b).forEach(p => {
+    if (lastP && p - lastP > 1) phtml += `<span style="color:var(--text3);padding:0 2px;font-size:12px">…</span>`;
+    phtml += `<button class="btn btn-xs ${p===fullTablePage?'btn-primary':'btn-ghost'}"
+      onclick="fullTablePage=${p};sortAndRenderFull()">${p}</button>`;
+    lastP = p;
+  });
+  // Next button
+  if (fullTablePage < pages) {
+    phtml += `<button class="btn btn-xs btn-ghost" onclick="fullTablePage=${fullTablePage+1};sortAndRenderFull()">Next →</button>`;
   }
   document.getElementById('table-pagination').innerHTML = phtml;
 }

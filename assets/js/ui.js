@@ -51,7 +51,10 @@ const Toast = {
 // ═══════════════════════════════════════════════════════════════
 // SCORE RING
 // ═══════════════════════════════════════════════════════════════
-function renderScoreRing(score, size = 56) {
+function renderScoreRing(rawScore, size = 56) {
+  // Sanitize — guard against Infinity/NaN from division errors
+  const score = (rawScore == null || !isFinite(rawScore) || isNaN(rawScore))
+    ? 50 : Math.min(100, Math.max(0, Math.round(rawScore)));
   const r = (size / 2) - 5;
   const circ = 2 * Math.PI * r;
   const fill = (score / 100) * circ;
@@ -110,7 +113,9 @@ function signalBadge(signal) {
 // ═══════════════════════════════════════════════════════════════
 // ACCUMULATION BAR
 // ═══════════════════════════════════════════════════════════════
-function accumulationBar(score) {
+function accumulationBar(rawScore) {
+  const score = (rawScore == null || !isFinite(rawScore) || isNaN(rawScore))
+    ? 50 : Math.min(100, Math.max(0, Math.round(rawScore)));
   const cls = score >= 70 ? 'green' : score >= 40 ? 'yellow' : 'red';
   return `
     <div style="display:flex;align-items:center;gap:8px">
@@ -329,12 +334,18 @@ function openAlertModal(symbol) {
 // DATA DISCLAIMER
 // ═══════════════════════════════════════════════════════════════
 function demoDisclaimer() {
-  if (!API.CONFIG.DEMO_MODE) return '';
+  if (API.CONFIG.DEMO_MODE) {
+    return `
+      <div class="data-disclaimer">
+        ⚠️ <strong>Demo Mode:</strong> Showing sample data with simulated movement.
+        Backend not connected yet.
+      </div>
+    `;
+  }
   return `
-    <div class="data-disclaimer">
-      ⚠️ <strong>Demo Mode:</strong> Showing sample data with simulated movement. 
-      Connect your backend (Python NepseUnofficialApi) for live data. 
-      <a href="README.md" style="color:var(--yellow);text-decoration:underline">Setup guide →</a>
+    <div style="background:var(--green-bg);border:1px solid rgba(16,185,129,.3);border-radius:var(--r-md);
+      padding:10px 14px;font-size:11.5px;color:var(--green);display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      ✅ <strong>Live Data Mode</strong> — Connected to NEPSE backend. Data refreshes every 5 minutes during market hours.
     </div>
   `;
 }

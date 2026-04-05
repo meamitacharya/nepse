@@ -58,7 +58,7 @@
         <div class="page-title">Buy/Sell <span>Signals</span></div>
         <div class="page-sub">AI-powered signals based on broker activity, price action & fundamentals</div>
       </div>
-      <div class="live-badge" id="live-ind">DEMO</div>
+      <div class="live-badge" id="live-ind" style="background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(245,158,11,.3)">Loading…</div>
     </div>
 
     <!-- Signal Summary Cards -->
@@ -161,6 +161,17 @@ function render(data) {
   UI.updateTicker(data.stocks);
   UI.updateMarketStatusBar(data.isMarketOpen);
   UI.updateTimestamp();
+  // Update live indicator
+  const ind = document.getElementById('live-ind');
+  if (ind) {
+    if (API.CONFIG.DEMO_MODE) {
+      ind.textContent = 'DEMO'; ind.style.background = 'var(--yellow-bg)';
+      ind.style.color = 'var(--yellow)'; ind.style.border = '1px solid rgba(245,158,11,.3)';
+    } else {
+      ind.textContent = 'LIVE'; ind.style.background = 'var(--green-bg)';
+      ind.style.color = 'var(--green)'; ind.style.border = '1px solid rgba(16,185,129,.3)';
+    }
+  }
 
   // Build signals
   allSigs = data.stocks.map(s => {
