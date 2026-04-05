@@ -6,19 +6,8 @@
 
 // ── CONFIG ──────────────────────────────────────────────────────
 const CONFIG = {
-<<<<<<< HEAD
-  // !! REPLACE THIS with your Render.com URL after deploying backend !!
-  // Example: 'https://nepse-smart-api.onrender.com'
-  BACKEND_URL: 'https://nepse-api-vgsd.onrender.com',
-
-  // Data refresh interval (ms)
-  REFRESH_MS: 5 * 60 * 1000,  // 5 minutes
-
-  // Market hours (Nepal time UTC+5:45)
-=======
   BACKEND_URL: 'https://nepse-api-vgsd.onrender.com',
   REFRESH_MS:  5 * 60 * 1000,
->>>>>>> 2183535 (updated respective files)
   MARKET_OPEN:  { h: 11, m: 0 },
   MARKET_CLOSE: { h: 15, m: 0 },
   DEMO_MODE: false,
