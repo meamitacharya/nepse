@@ -6,7 +6,7 @@
 
 // ── CONFIG ──────────────────────────────────────────────────────
 const CONFIG = {
-  BACKEND_URL: 'https://nepse-api-vgsd.onrender.com',
+  BACKEND_URL: 'https://meamitacharya-nepse-api-amit.hf.space',
   REFRESH_MS:  5 * 60 * 1000,
   MARKET_OPEN:  { h: 11, m: 0 },
   MARKET_CLOSE: { h: 15, m: 0 },
@@ -250,6 +250,78 @@ function analyzeSectorRotation(stocks) {
   }).sort((a, b) => b.avgChg - a.avgChg);
 }
 
+// ── HF API RESPONSE PARSERS ─────────────────────────────────────
+// Your HF API returns data directly (no .data wrapper).
+// /TradeTurnoverTransactionSubindices → { scripsDetails: {SYM: {...}}, sectorsDetails: {...} }
+// /NepseIndex → { "NEPSE Index": { index, currentValue, change, perChange, open, high, low }, ... }
+// /Summary    → { "Total Turnover Amount": 9.8e9, "Total Traded Shares": 123456, ... }
+// /NepseSubIndices → { "Banking SubIndex": { currentValue, change, perChange }, ... }
+
+function parseHFStocks(scripsDetails) {
+  // scripsDetails is an object keyed by symbol
+  return Object.entries(scripsDetails).map(([symbol, s]) => {
+    const ltp  = parseFloat(s.ltp)  || 0;
+    const prev = parseFloat(s.previousClose) || 0;
+    return {
+      symbol,
+      name:    s.name || symbol,
+      sector:  mapSector(s.sector),
+      ltp,
+      open:    ltp,   // HF API doesn't expose open separately in this endpoint
+      high:    ltp,
+      low:     ltp,
+      prev,
+      vol:     parseInt(s.volume)      || 0,
+      to:      parseFloat(s.Turnover)  || 0,
+      chg:     prev > 0 ? parseFloat((ltp - prev).toFixed(2)) : parseFloat(s.pointChange) || 0,
+      chgPct:  prev > 0 ? parseFloat(((ltp - prev) / prev * 100).toFixed(2)) : parseFloat(s.percentageChange) || 0,
+      eps:     0,
+      pe:      0,
+      bv:      0,
+      category: s.category || '',
+    };
+  }).filter(s => s.ltp > 0);
+}
+
+function parseHFIndices(nepseIndexData) {
+  // nepseIndexData: { "NEPSE Index": { currentValue, change, perChange, open, high, low }, ... }
+  const idx = {};
+  const main = nepseIndexData['NEPSE Index'] || {};
+  const sens = nepseIndexData['Sensitive Index'] || {};
+  const flt  = nepseIndexData['Float Index'] || nepseIndexData['NEPSE Float Index'] || {};
+
+  idx.nepse = {
+    value:  parseFloat(main.currentValue) || 0,
+    change: parseFloat(main.change)       || 0,
+    pct:    parseFloat(main.perChange)    || 0,
+    open:   parseFloat(main.open)         || 0,
+    high:   parseFloat(main.high)         || 0,
+    low:    parseFloat(main.low)          || 0,
+  };
+  idx.sensitive = {
+    value:  parseFloat(sens.currentValue) || 0,
+    change: parseFloat(sens.change)       || 0,
+    pct:    parseFloat(sens.perChange)    || 0,
+  };
+  idx.float = {
+    value:  parseFloat(flt.currentValue)  || 0,
+    change: parseFloat(flt.change)        || 0,
+    pct:    parseFloat(flt.perChange)     || 0,
+  };
+  return idx;
+}
+
+function parseHFSummary(summaryData) {
+  // summaryData: { "Total Turnover Amount": 9.8e9, "Total Traded Shares": 12345, "Total Transactions": 68420, ... }
+  return {
+    turnover:     parseFloat(summaryData['Total Turnover Amount'])  || 0,
+    transactions: parseInt(summaryData['Total Transactions'])       || 0,
+    advances:     parseInt(summaryData['Total Positive Stocks'])    || parseInt(summaryData['Advances']) || 0,
+    declines:     parseInt(summaryData['Total Negative Stocks'])    || parseInt(summaryData['Declines']) || 0,
+    unchanged:    parseInt(summaryData['Total Neutral Stocks'])     || parseInt(summaryData['Unchanged']) || 0,
+  };
+}
+
 // ── MAIN FETCH ───────────────────────────────────────────────────
 async function fetchMarketData() {
   checkMarketStatus();
@@ -272,60 +344,73 @@ async function fetchMarketData() {
     return;
   }
 
-  // ── LIVE MODE ──
+  // ── LIVE MODE via HuggingFace API ──
   const base = CONFIG.BACKEND_URL;
   try {
-    const [stocksRes, idxRes, summaryRes] = await Promise.allSettled([
-      fetch(`${base}/api/stocks`,  { signal: AbortSignal.timeout(20000) }),
-      fetch(`${base}/api/indices`, { signal: AbortSignal.timeout(20000) }),
-      fetch(`${base}/api/summary`, { signal: AbortSignal.timeout(20000) }),
+    const [tradeRes, idxRes, summaryRes] = await Promise.allSettled([
+      fetch(`${base}/TradeTurnoverTransactionSubindices`, { signal: AbortSignal.timeout(30000) }),
+      fetch(`${base}/NepseIndex`,                        { signal: AbortSignal.timeout(20000) }),
+      fetch(`${base}/Summary`,                           { signal: AbortSignal.timeout(20000) }),
     ]);
 
-    // Stocks
-    if (stocksRes.status === 'fulfilled' && stocksRes.value.ok) {
-      const json = await stocksRes.value.json();
-      const raw  = json.data || [];
-      // Fix sector and sanitize all numeric fields
-      NEPSE.stocks = raw.map(s => ({
-        ...s,
-        sector:  mapSector(s.sector),
-        ltp:     parseFloat(s.ltp)     || 0,
-        open:    parseFloat(s.open)    || 0,
-        high:    parseFloat(s.high)    || 0,
-        low:     parseFloat(s.low)     || 0,
-        prev:    parseFloat(s.prev)    || 0,
-        vol:     parseInt(s.vol)       || 0,
-        to:      parseFloat(s.to)      || 0,
-        // Recalculate change safely — prev=0 means market closed
-        chg:     s.prev > 0 ? parseFloat((s.ltp - s.prev).toFixed(2)) : 0,
-        chgPct:  s.prev > 0 ? parseFloat(((s.ltp - s.prev) / s.prev * 100).toFixed(2)) : 0,
-        eps:     parseFloat(s.eps)     || 0,
-        pe:      parseFloat(s.pe)      || 0,
-        bv:      parseFloat(s.bv)      || 0,
-      }));
-      console.info(`[API] ✅ ${NEPSE.stocks.length} stocks (${json.source})`);
+    // ── Stocks from TradeTurnoverTransactionSubindices ──
+    if (tradeRes.status === 'fulfilled' && tradeRes.value.ok) {
+      const json = await tradeRes.value.json();
+      const scrips = json.scripsDetails || {};
+      NEPSE.stocks = parseHFStocks(scrips);
+      console.info(`[API] ✅ ${NEPSE.stocks.length} stocks loaded from HF API`);
+    } else {
+      console.warn('[API] TradeTurnover endpoint failed, trying LiveMarket fallback...');
+      // Fallback to LiveMarket
+      try {
+        const lmRes = await fetch(`${base}/LiveMarket`, { signal: AbortSignal.timeout(20000) });
+        if (lmRes.ok) {
+          const lmData = await lmRes.json();
+          const arr = Array.isArray(lmData) ? lmData : Object.values(lmData);
+          NEPSE.stocks = arr.map(s => {
+            const ltp  = parseFloat(s.ltp || s.lastTradedPrice) || 0;
+            const prev = parseFloat(s.previousClose || s.prev) || 0;
+            return {
+              symbol:  s.symbol || s.stockSymbol || '',
+              name:    s.securityName || s.name || s.symbol || '',
+              sector:  mapSector(s.sectorName || s.sector),
+              ltp, prev,
+              open:    parseFloat(s.openPrice)  || ltp,
+              high:    parseFloat(s.highPrice)  || ltp,
+              low:     parseFloat(s.lowPrice)   || ltp,
+              vol:     parseInt(s.totalTradeQuantity || s.shareTraded) || 0,
+              to:      parseFloat(s.totalTurnover || s.turnover) || 0,
+              chg:     prev > 0 ? parseFloat((ltp - prev).toFixed(2)) : parseFloat(s.change || s.pointChange) || 0,
+              chgPct:  prev > 0 ? parseFloat(((ltp - prev) / prev * 100).toFixed(2)) : parseFloat(s.percentageChange) || 0,
+              eps: 0, pe: 0, bv: 0,
+            };
+          }).filter(s => s.symbol && s.ltp > 0);
+          console.info(`[API] ✅ ${NEPSE.stocks.length} stocks from LiveMarket fallback`);
+        }
+      } catch(fe) { console.warn('[API] LiveMarket fallback also failed:', fe.message); }
     }
 
-    // Indices
+    // ── NEPSE Index ──
     if (idxRes.status === 'fulfilled' && idxRes.value.ok) {
       const json = await idxRes.value.json();
-      NEPSE.indices = json.data || {};
+      const parsed = parseHFIndices(json);
+      NEPSE.indices = { ...NEPSE.indices, ...parsed };
     }
 
-    // Summary
+    // ── Summary ──
     if (summaryRes.status === 'fulfilled' && summaryRes.value.ok) {
       const json = await summaryRes.value.json();
-      const s    = json.data || {};
-      NEPSE.indices.turnover  = s.turnover    || 0;
-      NEPSE.indices.txns      = s.transactions || 0;
-      NEPSE.indices.advances  = s.advances    || NEPSE.stocks.filter(x => x.chg > 0).length;
-      NEPSE.indices.declines  = s.declines    || NEPSE.stocks.filter(x => x.chg < 0).length;
-      NEPSE.indices.unchanged = s.unchanged   || NEPSE.stocks.filter(x => x.chg === 0).length;
+      const s    = parseHFSummary(json);
+      NEPSE.indices.turnover  = s.turnover;
+      NEPSE.indices.txns      = s.transactions;
+      NEPSE.indices.advances  = s.advances  || NEPSE.stocks.filter(x => x.chg > 0).length;
+      NEPSE.indices.declines  = s.declines  || NEPSE.stocks.filter(x => x.chg < 0).length;
+      NEPSE.indices.unchanged = s.unchanged || NEPSE.stocks.filter(x => x.chg === 0).length;
     } else {
       NEPSE.indices.advances  = NEPSE.stocks.filter(x => x.chg > 0).length;
       NEPSE.indices.declines  = NEPSE.stocks.filter(x => x.chg < 0).length;
       NEPSE.indices.unchanged = NEPSE.stocks.filter(x => x.chg === 0).length;
-      NEPSE.indices.turnover  = NEPSE.stocks.reduce((s, x) => s + (x.to || 0), 0);
+      NEPSE.indices.turnover  = NEPSE.stocks.reduce((acc, x) => acc + (x.to || 0), 0);
     }
 
     fetchFloorsheetBackground(base);
@@ -342,21 +427,32 @@ async function fetchMarketData() {
 // ── FLOORSHEET (background, non-blocking) ───────────────────────
 async function fetchFloorsheetBackground(base) {
   try {
-    const res = await fetch(`${base}/api/floorsheet`, { signal: AbortSignal.timeout(60000) });
+    const res = await fetch(`${base}/Floorsheet`, { signal: AbortSignal.timeout(60000) });
     if (!res.ok) return;
     const json = await res.json();
-    const rows = json.data || [];
+    // HF API /Floorsheet returns array directly or has a floorSheetData key
+    const rows = Array.isArray(json) ? json
+               : Array.isArray(json.floorSheetData) ? json.floorSheetData
+               : (json.data || []);
     if (!rows.length) return;
 
     const byStock = {};
     for (const row of rows) {
-      const sym = row.symbol;
+      // HF API floorsheet fields: stockSymbol, buyerMemberId, sellerMemberId, contractQuantity, contractRate
+      const sym = row.symbol || row.stockSymbol || row.stock;
+      if (!sym) continue;
       if (!byStock[sym]) byStock[sym] = { symbol: sym, netUnits: 0, buyers: {}, sellers: {} };
-      byStock[sym].netUnits += row.netUnits || 0;
-      if ((row.netUnits || 0) > 0)
-        byStock[sym].buyers[row.brokerId]  = (byStock[sym].buyers[row.brokerId]  || 0) + (row.bought || 0);
-      else
-        byStock[sym].sellers[row.brokerId] = (byStock[sym].sellers[row.brokerId] || 0) + (row.sold   || 0);
+      const qty = parseInt(row.contractQuantity || row.quantity || row.bought || 0);
+      const buyId  = String(row.buyerMemberId  || row.buyBrokerId  || row.buyer  || 0);
+      const sellId = String(row.sellerMemberId || row.sellBrokerId || row.seller || 0);
+      if (buyId !== '0') {
+        byStock[sym].buyers[buyId]  = (byStock[sym].buyers[buyId]  || 0) + qty;
+        byStock[sym].netUnits += qty;
+      }
+      if (sellId !== '0') {
+        byStock[sym].sellers[sellId] = (byStock[sym].sellers[sellId] || 0) + qty;
+        byStock[sym].netUnits -= qty;
+      }
     }
 
     NEPSE.brokerData = Object.values(byStock).map(s => {
