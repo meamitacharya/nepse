@@ -258,67 +258,82 @@ function analyzeSectorRotation(stocks) {
 // /NepseSubIndices → { "Banking SubIndex": { currentValue, change, perChange }, ... }
 
 function parseHFStocks(scripsDetails) {
-  // scripsDetails is an object keyed by symbol
+  // scripsDetails: { NABIL: { symbol, sector, Turnover, transaction, volume,
+  //   previousClose, name, category, pointChange, percentageChange, ltp }, ... }
   return Object.entries(scripsDetails).map(([symbol, s]) => {
-    const ltp  = parseFloat(s.ltp)  || 0;
+    const ltp  = parseFloat(s.ltp)           || 0;
     const prev = parseFloat(s.previousClose) || 0;
+    const chg    = parseFloat(s.pointChange)      || 0;
+    const chgPct = parseFloat(s.percentageChange) || 0;
     return {
       symbol,
-      name:    s.name || symbol,
+      name:    s.name     || symbol,
       sector:  mapSector(s.sector),
       ltp,
-      open:    ltp,   // HF API doesn't expose open separately in this endpoint
+      open:    prev,  // not provided — use previousClose as proxy
       high:    ltp,
       low:     ltp,
       prev,
-      vol:     parseInt(s.volume)      || 0,
-      to:      parseFloat(s.Turnover)  || 0,
-      chg:     prev > 0 ? parseFloat((ltp - prev).toFixed(2)) : parseFloat(s.pointChange) || 0,
-      chgPct:  prev > 0 ? parseFloat(((ltp - prev) / prev * 100).toFixed(2)) : parseFloat(s.percentageChange) || 0,
-      eps:     0,
-      pe:      0,
-      bv:      0,
+      vol:     parseInt(s.volume)     || 0,
+      to:      parseFloat(s.Turnover) || 0,  // capital T!
+      chg,
+      chgPct,
+      eps:      0,
+      pe:       0,
+      bv:       0,
       category: s.category || '',
     };
   }).filter(s => s.ltp > 0);
 }
 
-function parseHFIndices(nepseIndexData) {
-  // nepseIndexData: { "NEPSE Index": { currentValue, change, perChange, open, high, low }, ... }
-  const idx = {};
-  const main = nepseIndexData['NEPSE Index'] || {};
-  const sens = nepseIndexData['Sensitive Index'] || {};
-  const flt  = nepseIndexData['Float Index'] || nepseIndexData['NEPSE Float Index'] || {};
-
-  idx.nepse = {
-    value:  parseFloat(main.currentValue) || 0,
-    change: parseFloat(main.change)       || 0,
-    pct:    parseFloat(main.perChange)    || 0,
-    open:   parseFloat(main.open)         || 0,
-    high:   parseFloat(main.high)         || 0,
-    low:    parseFloat(main.low)          || 0,
+function parseHFIndices(data) {
+  // { "NEPSE Index": { currentValue, change, perChange, high, low, previousClose, ... }, ... }
+  const main = data['NEPSE Index']         || {};
+  const sens = data['Sensitive Index']     || {};
+  const flt  = data['Float Index']         || {};
+  const sensF= data['Sensitive Float Index'] || {};
+  return {
+    nepse: {
+      value:  parseFloat(main.currentValue)  || 0,
+      change: parseFloat(main.change)        || 0,
+      pct:    parseFloat(main.perChange)     || 0,
+      high:   parseFloat(main.high)          || 0,
+      low:    parseFloat(main.low)           || 0,
+      prev:   parseFloat(main.previousClose) || 0,
+      week52High: parseFloat(main.fiftyTwoWeekHigh) || 0,
+      week52Low:  parseFloat(main.fiftyTwoWeekLow)  || 0,
+    },
+    sensitive: {
+      value:  parseFloat(sens.currentValue) || 0,
+      change: parseFloat(sens.change)       || 0,
+      pct:    parseFloat(sens.perChange)    || 0,
+    },
+    float: {
+      value:  parseFloat(flt.currentValue)  || 0,
+      change: parseFloat(flt.change)        || 0,
+      pct:    parseFloat(flt.perChange)     || 0,
+    },
+    sensitiveFloat: {
+      value:  parseFloat(sensF.currentValue) || 0,
+      change: parseFloat(sensF.change)       || 0,
+      pct:    parseFloat(sensF.perChange)    || 0,
+    },
   };
-  idx.sensitive = {
-    value:  parseFloat(sens.currentValue) || 0,
-    change: parseFloat(sens.change)       || 0,
-    pct:    parseFloat(sens.perChange)    || 0,
-  };
-  idx.float = {
-    value:  parseFloat(flt.currentValue)  || 0,
-    change: parseFloat(flt.change)        || 0,
-    pct:    parseFloat(flt.perChange)     || 0,
-  };
-  return idx;
 }
 
-function parseHFSummary(summaryData) {
-  // summaryData: { "Total Turnover Amount": 9.8e9, "Total Traded Shares": 12345, "Total Transactions": 68420, ... }
+function parseHFSummary(data) {
+  // { "Total Turnover Rs:": 8665568641.79, "Total Traded Shares": 20163793,
+  //   "Total Transactions": 101180, "Total Scrips Traded": 342,
+  //   "Total Market Capitalization Rs:": ..., "Total Float Market Capitalization Rs:": ... }
+  // NOTE: No advances/declines in summary — will compute from stocks instead
   return {
-    turnover:     parseFloat(summaryData['Total Turnover Amount'])  || 0,
-    transactions: parseInt(summaryData['Total Transactions'])       || 0,
-    advances:     parseInt(summaryData['Total Positive Stocks'])    || parseInt(summaryData['Advances']) || 0,
-    declines:     parseInt(summaryData['Total Negative Stocks'])    || parseInt(summaryData['Declines']) || 0,
-    unchanged:    parseInt(summaryData['Total Neutral Stocks'])     || parseInt(summaryData['Unchanged']) || 0,
+    turnover:     parseFloat(data['Total Turnover Rs:'])  || 0,
+    transactions: parseInt(data['Total Transactions'])    || 0,
+    scripsTraded: parseInt(data['Total Scrips Traded'])   || 0,
+    marketCap:    parseFloat(data['Total Market Capitalization Rs:']) || 0,
+    advances:     0,  // not in summary — computed from stocks
+    declines:     0,
+    unchanged:    0,
   };
 }
 
@@ -403,14 +418,14 @@ async function fetchMarketData() {
       const s    = parseHFSummary(json);
       NEPSE.indices.turnover  = s.turnover;
       NEPSE.indices.txns      = s.transactions;
-      NEPSE.indices.advances  = s.advances  || NEPSE.stocks.filter(x => x.chg > 0).length;
-      NEPSE.indices.declines  = s.declines  || NEPSE.stocks.filter(x => x.chg < 0).length;
-      NEPSE.indices.unchanged = s.unchanged || NEPSE.stocks.filter(x => x.chg === 0).length;
-    } else {
-      NEPSE.indices.advances  = NEPSE.stocks.filter(x => x.chg > 0).length;
-      NEPSE.indices.declines  = NEPSE.stocks.filter(x => x.chg < 0).length;
-      NEPSE.indices.unchanged = NEPSE.stocks.filter(x => x.chg === 0).length;
-      NEPSE.indices.turnover  = NEPSE.stocks.reduce((acc, x) => acc + (x.to || 0), 0);
+      NEPSE.indices.marketCap = s.marketCap;
+    }
+    // Always compute advances/declines from live stock data
+    NEPSE.indices.advances  = NEPSE.stocks.filter(x => x.chg > 0).length;
+    NEPSE.indices.declines  = NEPSE.stocks.filter(x => x.chg < 0).length;
+    NEPSE.indices.unchanged = NEPSE.stocks.filter(x => x.chg === 0).length;
+    if (!NEPSE.indices.turnover) {
+      NEPSE.indices.turnover = NEPSE.stocks.reduce((acc, x) => acc + (x.to || 0), 0);
     }
 
     fetchFloorsheetBackground(base);
