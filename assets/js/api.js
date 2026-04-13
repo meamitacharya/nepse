@@ -430,6 +430,7 @@ async function fetchMarketData() {
 
     fetchFloorsheetBackground(base);
     NEPSE.lastUpdated = new Date();
+    saveCache();
     Bus.emit('data:updated', NEPSE);
 
   } catch (err) {
@@ -489,6 +490,7 @@ async function fetchFloorsheetBackground(base) {
     });
 
     console.info(`[API] ✅ Floorsheet: ${NEPSE.brokerData.length} stocks tracked`);
+    saveCache();
     Bus.emit('data:updated', NEPSE);
   } catch (e) {
     console.warn('[API] Floorsheet failed:', e.message);
@@ -517,7 +519,37 @@ function savePortfolio() { localStorage.setItem('ns_portfolio', JSON.stringify(N
 function saveWatchlist()  { localStorage.setItem('ns_watchlist', JSON.stringify(NEPSE.watchlist)); Bus.emit('watchlist:updated', NEPSE.watchlist); }
 function saveAlerts()     { localStorage.setItem('ns_alerts',    JSON.stringify(NEPSE.alerts));    Bus.emit('alerts:updated',    NEPSE.alerts); }
 
-// ── ALERT CHECKER ───────────────────────────────────────────────
+// ── CACHE HELPERS ────────────────────────────────────────────────
+const CACHE_KEY = 'ns_market_cache';
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function saveCache() {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      ts:         Date.now(),
+      stocks:     NEPSE.stocks,
+      indices:    NEPSE.indices,
+      brokerData: NEPSE.brokerData,
+    }));
+  } catch(e) { /* storage full — ignore */ }
+}
+
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const cache = JSON.parse(raw);
+    if (Date.now() - cache.ts > CACHE_TTL) return false; // stale
+    NEPSE.stocks     = cache.stocks     || [];
+    NEPSE.indices    = cache.indices    || {};
+    NEPSE.brokerData = cache.brokerData || [];
+    NEPSE.lastUpdated = new Date(cache.ts);
+    console.info(`[API] ✅ Loaded ${NEPSE.stocks.length} stocks from cache (${Math.round((Date.now()-cache.ts)/1000)}s old)`);
+    return true;
+  } catch(e) { return false; }
+}
+
+// ── ALERT CHECKER ────────────────────────────────────────────────
 function checkAlerts() {
   NEPSE.alerts.forEach(alert => {
     if (!alert.active) return;
@@ -540,7 +572,19 @@ function checkAlerts() {
 
 // ── INIT ────────────────────────────────────────────────────────
 async function initAPI() {
-  await fetchMarketData();
+  // Use cached data immediately if fresh — no loading spinner for user
+  if (loadCache()) {
+    Bus.emit('data:updated', NEPSE);
+    checkAlerts();
+    // Still refresh in background if cache is older than 2 minutes
+    const raw = localStorage.getItem(CACHE_KEY);
+    const cacheAge = raw ? Date.now() - JSON.parse(raw).ts : Infinity;
+    if (cacheAge > 2 * 60 * 1000) {
+      fetchMarketData(); // background refresh, non-blocking
+    }
+  } else {
+    await fetchMarketData(); // no cache — must wait
+  }
   Bus.on('data:updated', checkAlerts);
   setInterval(fetchMarketData, CONFIG.DEMO_MODE ? 15000 : CONFIG.REFRESH_MS);
 }
