@@ -9,9 +9,9 @@ const CONFIG = {
   // Local Backend (Development)
   LOCAL_BACKEND: 'http://localhost:8000/api',
   
-  // Production Backend (Render.com)
-  // TODO: Replace this with your actual Render URL after deployment
-  PROD_BACKEND:  'https://nepse-smart-backend.onrender.com/api',
+  // Production Backend (Hugging Face Spaces - ZERO COST, NO CARD REQUIRED)
+  // TODO: Replace this with your actual Hugging Face Space URL after deployment
+  PROD_BACKEND:  'https://meamitacharya-nepse-smart-backend.hf.space/api',
   
   // Automatically select backend based on current URL
   get BACKEND_URL() {
