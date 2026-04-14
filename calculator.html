@@ -157,16 +157,18 @@ const CGT_LONG    = 0.05;    // 5%
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('demo-disc').innerHTML = UI.demoDisclaimer();
   await API.init();
-  API.Bus.on('data:updated', d => {
+  const update = (d) => {
     UI.updateTicker(d.stocks); UI.updateMarketStatusBar(d.isMarketOpen);
     const sel = document.getElementById('c-symbol');
-    if (sel.options.length <= 1) {
+    if (sel && sel.options.length <= 1) {
       d.stocks.forEach(s => {
         const o = document.createElement('option'); o.value = s.symbol;
         o.textContent = `${s.symbol} — Rs. ${API.Utils.fmt(s.ltp)}`; sel.appendChild(o);
       });
     }
-  });
+  };
+  API.Bus.on('data:updated', update);
+  if (NEPSE.stocks.length) update(NEPSE);
 });
 
 function autofillPrice() {

@@ -6,7 +6,20 @@
 
 // ── CONFIG ──────────────────────────────────────────────────────
 const CONFIG = {
-  BACKEND_URL: 'https://meamitacharya-nepse-api-amit.hf.space',
+  // Local Backend (Development)
+  LOCAL_BACKEND: 'http://localhost:8000/api',
+  
+  // Production Backend (Render.com)
+  // TODO: Replace this with your actual Render URL after deployment
+  PROD_BACKEND:  'https://nepse-smart-backend.onrender.com/api',
+  
+  // Automatically select backend based on current URL
+  get BACKEND_URL() {
+    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+      ? this.LOCAL_BACKEND : this.PROD_BACKEND;
+  },
+
+  LIVE_DATA_URL: 'https://meamitacharya-nepse-api-amit.hf.space',
   REFRESH_MS:  5 * 60 * 1000,
   MARKET_OPEN:  { h: 11, m: 0 },
   MARKET_CLOSE: { h: 15, m: 0 },
@@ -137,6 +150,19 @@ const DEMO_INDICES = {
 
 // ── SIGNAL ALGORITHM ────────────────────────────────────────────
 function generateSignal(stock, accumData) {
+  // If we have a signal from our Python backend, use it!
+  if (stock.backendSignal) {
+    return {
+      signal: stock.backendSignal.signal,
+      score:  stock.backendSignal.score,
+      strength: stock.backendSignal.score >= 70 ? 'STRONG' : 'MODERATE',
+      zone:   `Rs. ${(stock.ltp*0.98).toFixed(0)} - ${(stock.ltp*1.01).toFixed(0)}`,
+      reason: "Analysis provided by NEPSE Smart Engine (Python Backend)",
+      target: `Rs. ${(stock.ltp*1.15).toFixed(0)}`,
+      stopLoss: `Rs. ${(stock.ltp*0.93).toFixed(0)}`
+    };
+  }
+
   const acc = accumData || { score: 50, signal: 'NEUTRAL' };
   const accScore = Math.min(100, Math.max(0, acc.score || 50));
 
@@ -360,12 +386,14 @@ async function fetchMarketData() {
   }
 
   // ── LIVE MODE via HuggingFace API ──
-  const base = CONFIG.BACKEND_URL;
+  const liveBase = CONFIG.LIVE_DATA_URL;
+  const localBase = CONFIG.BACKEND_URL;
+
   try {
     const [tradeRes, idxRes, summaryRes] = await Promise.allSettled([
-      fetch(`${base}/TradeTurnoverTransactionSubindices`, { signal: AbortSignal.timeout(30000) }),
-      fetch(`${base}/NepseIndex`,                        { signal: AbortSignal.timeout(20000) }),
-      fetch(`${base}/Summary`,                           { signal: AbortSignal.timeout(20000) }),
+      fetch(`${liveBase}/TradeTurnoverTransactionSubindices`, { signal: AbortSignal.timeout(30000) }),
+      fetch(`${liveBase}/NepseIndex`,                        { signal: AbortSignal.timeout(20000) }),
+      fetch(`${liveBase}/Summary`,                           { signal: AbortSignal.timeout(20000) }),
     ]);
 
     // ── Stocks from TradeTurnoverTransactionSubindices ──
@@ -378,7 +406,7 @@ async function fetchMarketData() {
       console.warn('[API] TradeTurnover endpoint failed, trying LiveMarket fallback...');
       // Fallback to LiveMarket
       try {
-        const lmRes = await fetch(`${base}/LiveMarket`, { signal: AbortSignal.timeout(20000) });
+        const lmRes = await fetch(`${liveBase}/LiveMarket`, { signal: AbortSignal.timeout(20000) });
         if (lmRes.ok) {
           const lmData = await lmRes.json();
           const arr = Array.isArray(lmData) ? lmData : Object.values(lmData);
@@ -428,7 +456,36 @@ async function fetchMarketData() {
       NEPSE.indices.turnover = NEPSE.stocks.reduce((acc, x) => acc + (x.to || 0), 0);
     }
 
-    fetchFloorsheetBackground(base);
+    fetchFloorsheetBackground(liveBase);
+    
+    // ── FETCH CUSTOM SIGNALS FROM LOCAL BACKEND ──
+    try {
+      const sigRes = await fetch(`${localBase}/signals/latest`, { signal: AbortSignal.timeout(5000) });
+      if (sigRes.ok) {
+        const sigData = await sigRes.json();
+        const results = sigData.data || [];
+        
+        // Merge signals into our stock objects directly
+        results.forEach(sig => {
+           const stock = NEPSE.stocks.find(s => s.symbol === sig.symbol);
+           if (stock) {
+             stock.backendSignal = sig;
+           }
+           
+           // Also merge into brokerData for compatibility with signals.html and broker.html
+           let bData = NEPSE.brokerData.find(b => b.symbol === sig.symbol);
+           if (!bData) {
+             bData = { symbol: sig.symbol, score: sig.score, trend: 'neutral', topBuyers: [], topSellers: [], netUnits: 0, days: 1, signal: sig.signal };
+             NEPSE.brokerData.push(bData);
+           } else {
+             bData.score = sig.score;
+             bData.signal = sig.signal;
+           }
+        });
+        console.info(`[API] ✅ Successfully loaded ${results.length} smart signals from local backend`);
+      }
+    } catch(e) { console.warn('[API] Local backend signal fetch failed. Using client-side fallback.'); }
+
     NEPSE.lastUpdated = new Date();
     saveCache();
     Bus.emit('data:updated', NEPSE);

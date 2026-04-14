@@ -115,6 +115,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('demo-disc').innerHTML = UI.demoDisclaimer();
   await API.init();
   API.Bus.on('data:updated', render);
+  // Immediate render if data is already loaded
+  if (NEPSE.stocks && NEPSE.stocks.length > 0) {
+    render(NEPSE);
+  }
 });
 
 function render(data) {

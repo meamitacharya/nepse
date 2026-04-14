@@ -148,13 +148,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   API.Bus.on('data:updated', render);
   API.Bus.on('alert:triggered', onAlertTriggered);
 
-  const sel = document.getElementById('a-symbol');
-  NEPSE.stocks.forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s.symbol;
-    opt.textContent = `${s.symbol} — ${API.Utils.fmt(s.ltp)} Rs.`;
-    sel.appendChild(opt);
-  });
+  if (NEPSE.stocks.length) {
+    const sel = document.getElementById('a-symbol');
+    NEPSE.stocks.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.symbol;
+      opt.textContent = `${s.symbol} — ${API.Utils.fmt(s.ltp)} Rs.`;
+      sel.appendChild(opt);
+    });
+    render(NEPSE);
+  }
 
   document.getElementById('a-symbol').addEventListener('change', function() {
     const s = NEPSE.stocks.find(x => x.symbol === this.value);

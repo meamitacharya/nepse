@@ -181,12 +181,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   API.Bus.on('data:updated', render);
   // Populate stock dropdown
   const sel = document.getElementById('h-symbol');
-  NEPSE.stocks.forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s.symbol;
-    opt.textContent = `${s.symbol} — ${s.name}`;
-    sel.appendChild(opt);
-  });
+  if (NEPSE.stocks.length) {
+    NEPSE.stocks.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.symbol;
+      opt.textContent = `${s.symbol} — ${s.name}`;
+      sel.appendChild(opt);
+    });
+    render(NEPSE);
+  }
 });
 
 function render(data) {

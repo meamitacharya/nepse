@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env
+
+# Databases
+*.db
+backend/nepse.db
+
+# OS
+.DS_Store
+thumbs.db
+
+# Scratch
+scratch/

@@ -113,10 +113,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   await API.init();
   // Populate dropdown
   const sel = document.getElementById('w-symbol');
-  NEPSE.stocks.forEach(s => {
-    const o = document.createElement('option'); o.value = s.symbol;
-    o.textContent = `${s.symbol} — ${s.name}`; sel.appendChild(o);
-  });
+  if (NEPSE.stocks.length) {
+    NEPSE.stocks.forEach(s => {
+      const o = document.createElement('option'); o.value = s.symbol;
+      o.textContent = `${s.symbol} — ${s.name}`; sel.appendChild(o);
+    });
+    render(NEPSE);
+  }
   API.Bus.on('data:updated', render);
 });
 

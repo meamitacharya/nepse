@@ -132,7 +132,9 @@ function getDaysLeft(dateStr) {
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('demo-disc').innerHTML = UI.demoDisclaimer();
   await API.init();
-  API.Bus.on('data:updated', d => { UI.updateTicker(d.stocks); UI.updateMarketStatusBar(d.isMarketOpen); });
+  const update = (d) => { UI.updateTicker(d.stocks); UI.updateMarketStatusBar(d.isMarketOpen); };
+  API.Bus.on('data:updated', update);
+  if (NEPSE.stocks.length) update(NEPSE);
   renderUpcoming();
   renderCalendar();
 });

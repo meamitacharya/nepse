@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+sqlalchemy
+requests
+pandas
+ta # Technical Analysis Library
+psycopg2-binary # For Supabase/PostgreSQL connection
+pydantic
+python-dotenv
