@@ -155,5 +155,65 @@ def fetch_and_save_data():
     finally:
         db.close()
 
+def backfill_history(symbol, days=50):
+    """
+    Fetches historical OHLCV data for a specific symbol and saves it to the database.
+    """
+    db = SessionLocal()
+    try:
+        print(f"Backfilling History for {symbol}...")
+        resp = requests.get(f"{API_BASE_URL}/PriceVolumeHistory", params={"symbol": symbol})
+        if resp.status_code == 200:
+            data = resp.json()
+            # The API usually returns a list of daily data
+            history = data if isinstance(data, list) else data.get("priceHistory", [])
+            
+            count = 0
+            for entry in history:
+                # Standard NEPSE API fields: date, open, high, low, close, volume, etc.
+                dt_str = entry.get("date")
+                if not dt_str: continue
+                
+                # Check if already exists
+                existing = db.query(models.DailyCandle).filter(
+                    models.DailyCandle.symbol == symbol,
+                    models.DailyCandle.date == dt_str
+                ).first()
+                
+                if not existing:
+                    candle = models.DailyCandle(
+                        symbol=symbol,
+                        date=dt_str,
+                        open=float(entry.get("open", entry.get("openPrice", 0))),
+                        high=float(entry.get("high", entry.get("highPrice", 0))),
+                        low=float(entry.get("low", entry.get("lowPrice", 0))),
+                        close=float(entry.get("close", entry.get("lastTradedPrice", 0))),
+                        volume=int(entry.get("volume", entry.get("totalTradeQuantity", 0)))
+                    )
+                    db.add(candle)
+                    count += 1
+            
+            db.commit()
+            print(f"Saved {count} historical records for {symbol}.")
+        else:
+            print(f"History API failed for {symbol}: {resp.status_code}")
+    except Exception as e:
+        print(f"Error backfilling {symbol}: {str(e)}")
+    finally:
+        db.close()
+
+def backfill_all_stocks(limit=100):
+    """
+    Backfills history for the top N stocks to build indicator history.
+    """
+    db = SessionLocal()
+    try:
+        stocks = db.query(models.Stock).limit(limit).all()
+        print(f"Starting Batch Backfill for {len(stocks)} stocks...")
+        for stock in stocks:
+            backfill_history(stock.symbol)
+    finally:
+        db.close()
+
 if __name__ == "__main__":
     fetch_and_save_data()
