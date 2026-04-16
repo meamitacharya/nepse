@@ -4,11 +4,25 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import models
 from database import engine, get_db
+from scraper import fetch_and_save_data
 
 # Create the database tables
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="NEPSE Smart Backend Engine")
+
+# Administrative: Manual Scrape Trigger
+@app.get("/api/admin/scrape")
+def trigger_scrape(db: Session = Depends(get_db)):
+    """
+    Manually triggers the data scraper to populate the database.
+    Required because the scheduled GitHub Action only runs once a day.
+    """
+    try:
+        fetch_and_save_data()
+        return {"status": "success", "message": "Scraper completed successfully."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 # Allow the frontend to call this API
 app.add_middleware(
