@@ -1,0 +1,34 @@
+name: Sync to Hugging Face
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  sync-to-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push to hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          # Configure Git
+          git config --global user.email "hf-sync@github.com"
+          git config --global user.name "HF Sync Action"
+          
+          # Deploy ONLY the backend folder to HF Space root
+          # This ensures the Dockerfile in backend/ is at the root of the Space
+          cd backend
+          git init
+          git add .
+          git commit -m "Sync from GitHub: ${{ github.sha }}"
+          
+          # Push to Hugging Face
+          # User: meamitacharya
+          # Space: nepse-smart-backend
+          git push --force https://meamitacharya:$HF_TOKEN@huggingface.co/spaces/meamitacharya/nepse-smart-backend main
