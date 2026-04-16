@@ -72,20 +72,22 @@ def generate_buy_sell_signal(current_price: float, indicators: dict, broker_data
     if rsi is not None and not np.isnan(rsi):
         if rsi < 30:
             score += 15
-            reasons.append("RSI is oversold (< 30)")
+            reasons.append(f"RSI is oversold at {rsi:.1f}")
         elif rsi > 70:
             score -= 15
-            reasons.append("RSI is overbought (> 70)")
+            reasons.append(f"RSI is overbought at {rsi:.1f}")
+        else:
+            reasons.append(f"RSI is neutral at {rsi:.1f}")
             
     # 2. MACD Logic
     macd_hist = indicators.get("macd_histogram")
     if macd_hist is not None and not np.isnan(macd_hist):
         if macd_hist > 0:
             score += 10
-            reasons.append("MACD histogram is positive (Bullish momentum)")
+            reasons.append(f"Bullish momentum (MACD Hist: {macd_hist:.2f})")
         elif macd_hist < 0:
             score -= 10
-            reasons.append("MACD histogram is negative (Bearish momentum)")
+            reasons.append(f"Bearish momentum (MACD Hist: {macd_hist:.2f})")
             
     # 3. EMA Logic
     ema_20 = indicators.get("ema_20")
@@ -93,20 +95,19 @@ def generate_buy_sell_signal(current_price: float, indicators: dict, broker_data
     if ema_20 is not None and ema_50 is not None and not np.isnan(ema_20) and not np.isnan(ema_50):
         if current_price > ema_20 > ema_50:
             score += 15
-            reasons.append("Price is in a strong uptrend (Above EMA20 & EMA50)")
+            reasons.append("Strong uptrend (Price > EMA20 > EMA50)")
         elif current_price < ema_20 < ema_50:
             score -= 15
-            reasons.append("Price is in a strong downtrend (Below EMA20 & EMA50)")
+            reasons.append("Strong downtrend (Price < EMA20 < EMA50)")
 
     # 4. Broker Accumulation Logic
     net_activity = broker_data.get("total_net_recent", 0)
-    # This needs to be normalized against average volume for accurate scoring, sticking to simple logic for now
-    if net_activity > 10000: # Arbitrary threshold
+    if net_activity > 10000:
         score += 20
-        reasons.append("Significant broker accumulation detected recently")
+        reasons.append(f"Broker accumulation detected: {net_activity:+,d} units")
     elif net_activity < -10000:
         score -= 20
-        reasons.append("Significant broker distribution detected recently")
+        reasons.append(f"Broker distribution detected: {net_activity:+,d} units")
         
     score = max(0, min(100, score)) # Clamp between 0 and 100
     

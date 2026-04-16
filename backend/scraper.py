@@ -223,13 +223,14 @@ def update_all_signals(db: Session = None):
             
             cache.score = signal_res["score"]
             cache.signal = signal_res["signal"]
-            cache.reason = signal_res["reason"]
+            # Join the reasons list into a single string for the dashboard
+            cache.reason = " | ".join(signal_res.get("reasons", [])) or "Hold position."
             cache.rsi = latest_indicators.get("rsi")
             cache.macd = latest_indicators.get("macd_histogram")
             cache.ema_20 = latest_indicators.get("ema_20")
             cache.ema_50 = latest_indicators.get("ema_50")
             cache.accumulation_score = accumulation_score
-            cache.last_updated = date.today()
+            cache.updated_at = datetime.now()
             
         db.commit()
         print("Signal cache updated successfully.")
