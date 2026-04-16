@@ -461,30 +461,38 @@ async function fetchMarketData() {
     // ── FETCH CUSTOM SIGNALS FROM LOCAL BACKEND ──
     try {
       const sigRes = await fetch(`${localBase}/signals/latest`, { signal: AbortSignal.timeout(5000) });
-      if (sigRes.ok) {
-        const sigData = await sigRes.json();
-        const results = sigData.data || [];
-        
-        // Merge signals into our stock objects directly
-        results.forEach(sig => {
-           const stock = NEPSE.stocks.find(s => s.symbol === sig.symbol);
-           if (stock) {
-             stock.backendSignal = sig;
-           }
-           
-           // Also merge into brokerData for compatibility with signals.html and broker.html
-           let bData = NEPSE.brokerData.find(b => b.symbol === sig.symbol);
-           if (!bData) {
-             bData = { symbol: sig.symbol, score: sig.score, trend: 'neutral', topBuyers: [], topSellers: [], netUnits: 0, days: 1, signal: sig.signal };
-             NEPSE.brokerData.push(bData);
-           } else {
-             bData.score = sig.score;
-             bData.signal = sig.signal;
-           }
-        });
-        console.info(`[API] ✅ Successfully loaded ${results.length} smart signals from local backend`);
+        if (sigRes.ok) {
+          const sigData = await sigRes.json();
+          const results = sigData.data || [];
+          
+          if (results.length === 0) {
+             console.warn('[API] ⚠️ Local backend connected but returned NO SIGNS. (Is the database empty?)');
+          } else {
+             // Merge signals into our stock objects directly
+             results.forEach(sig => {
+                const stock = NEPSE.stocks.find(s => s.symbol === sig.symbol);
+                if (stock) {
+                  stock.backendSignal = sig;
+                }
+                
+                // Also merge into brokerData for compatibility with signals.html and broker.html
+                let bData = NEPSE.brokerData.find(b => b.symbol === sig.symbol);
+                if (!bData) {
+                  bData = { symbol: sig.symbol, score: sig.score, trend: 'neutral', topBuyers: [], topSellers: [], netUnits: 0, days: 1, signal: sig.signal };
+                  NEPSE.brokerData.push(bData);
+                } else {
+                  bData.score = sig.score;
+                  bData.signal = sig.signal;
+                }
+             });
+             console.info(`[API] ✅ Successfully loaded ${results.length} smart signals from local backend`);
+          }
+        } else {
+           console.error(`[API] ❌ Local backend error: ${sigRes.status} ${sigRes.statusText}`);
+        }
+      } catch(e) { 
+        console.warn('[API] ⚠️ Local backend fetch failed (Connection Error). Using client-side fallback.'); 
       }
-    } catch(e) { console.warn('[API] Local backend signal fetch failed. Using client-side fallback.'); }
 
     NEPSE.lastUpdated = new Date();
     saveCache();
