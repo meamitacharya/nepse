@@ -10,6 +10,46 @@ models.Base.metadata.create_all(bind=engine)
 
 API_BASE_URL = "https://meamitacharya-nepse-api-amit.hf.space"
 
+def save_stock_and_candle(db, symbol, details, today):
+    # Update Stock Info
+    stock = db.query(models.Stock).filter(models.Stock.symbol == symbol).first()
+    if not stock:
+        stock = models.Stock(
+            symbol=symbol,
+            name=details.get("name", symbol),
+            sector=details.get("sector", "Others")
+        )
+        db.add(stock)
+    
+    # Fast commit/flush so the record exists
+    db.flush()
+
+    # Add Daily Candle
+    ltp = float(details.get("ltp", 0))
+    prev = float(details.get("previousClose", 0))
+    
+    # Approx OHLC
+    open_val = float(details.get("openPrice", prev))
+    high_val = float(details.get("highPrice", ltp))
+    low_val = float(details.get("lowPrice", ltp))
+    
+    existing_candle = db.query(models.DailyCandle).filter(
+        models.DailyCandle.symbol == symbol,
+        models.DailyCandle.date == today
+    ).first()
+
+    if not existing_candle:
+        candle = models.DailyCandle(
+            symbol=symbol,
+            date=today,
+            open=open_val,
+            high=high_val,
+            low=low_val,
+            close=ltp,
+            volume=int(details.get("volume", 0))
+        )
+        db.add(candle)
+
 def fetch_and_save_data():
     db = SessionLocal()
     today = date.today()
@@ -52,46 +92,6 @@ def fetch_and_save_data():
                 print("Successfully saved Daily Candles from fallback API.")
             else:
                 print(f"Fallback API also failed: {lm_resp.status_code}")
-
-def save_stock_and_candle(db, symbol, details, today):
-    # Update Stock Info
-    stock = db.query(models.Stock).filter(models.Stock.symbol == symbol).first()
-    if not stock:
-        stock = models.Stock(
-            symbol=symbol,
-            name=details.get("name", symbol),
-            sector=details.get("sector", "Others")
-        )
-        db.add(stock)
-    
-    # Fast commit/flush so the record exists
-    db.flush()
-
-    # Add Daily Candle
-    ltp = float(details.get("ltp", 0))
-    prev = float(details.get("previousClose", 0))
-    
-    # Approx OHLC
-    open_val = float(details.get("openPrice", prev))
-    high_val = float(details.get("highPrice", ltp))
-    low_val = float(details.get("lowPrice", ltp))
-    
-    existing_candle = db.query(models.DailyCandle).filter(
-        models.DailyCandle.symbol == symbol,
-        models.DailyCandle.date == today
-    ).first()
-
-    if not existing_candle:
-        candle = models.DailyCandle(
-            symbol=symbol,
-            date=today,
-            open=open_val,
-            high=high_val,
-            low=low_val,
-            close=ltp,
-            volume=int(details.get("volume", 0))
-        )
-        db.add(candle)
 
         # 2. Fetch Floorsheet Data for Broker Accumulation
         print("Fetching Floorsheet Data...")
