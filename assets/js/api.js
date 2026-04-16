@@ -201,27 +201,41 @@ function analyzeSectorRotation(stocks) {
 // ── FETCH LOGIC ────────────────────────────────────────────────
 async function fetchSmartSignals(localBase) {
   if (!localBase) return;
-  try {
-    console.info('[API] 📡 Requesting Smart Signals from Python Engine...');
-    const sigRes = await fetch(`${localBase}/signals/latest`, { signal: AbortSignal.timeout(10000) });
-    if (sigRes.ok) {
-      const sigData = await sigRes.json();
-      const results = sigData.data || [];
-      if (results.length > 0) {
-         results.forEach(sig => {
-            const stock = NEPSE.stocks.find(s => s.symbol === sig.symbol);
-            if (stock) stock.backendSignal = sig;
-            let bData = NEPSE.brokerData.find(b => b.symbol === sig.symbol);
-            if (!bData) {
-              bData = { symbol: sig.symbol, score: sig.score, trend: 'neutral', topBuyers: [], topSellers: [], netUnits: 0, days: 1, signal: sig.signal };
-              NEPSE.brokerData.push(bData);
-            } else { bData.score = sig.score; bData.signal = sig.signal; }
-         });
-         console.info(`[API] 🧠 Smart Engine: Loaded ${results.length} signals.`);
-         Bus.emit('data:updated', NEPSE);
+  const url = `${localBase}/signals/latest`;
+  console.info('[API] 📡 Initializing Smart Engine connection...');
+  
+  let attempts = 0;
+  const maxAttempts = 3;
+  
+  while (attempts < maxAttempts) {
+    try {
+      const sigRes = await fetch(url, { signal: AbortSignal.timeout(12000) });
+      if (sigRes.ok) {
+        const sigData = await sigRes.json();
+        const results = sigData.data || [];
+        if (results.length > 0) {
+           results.forEach(sig => {
+              const stock = NEPSE.stocks.find(s => s.symbol === sig.symbol);
+              if (stock) stock.backendSignal = sig;
+              let bData = NEPSE.brokerData.find(b => b.symbol === sig.symbol);
+              if (!bData) {
+                bData = { symbol: sig.symbol, score: sig.score, trend: 'neutral', topBuyers: [], topSellers: [], netUnits: 0, days: 1, signal: sig.signal };
+                NEPSE.brokerData.push(bData);
+              } else { bData.score = sig.score; bData.signal = sig.signal; }
+           });
+           console.info(`[API] 🧠 Smart Engine: Activated (${results.length} signals synchronized).`);
+           Bus.emit('data:updated', NEPSE);
+           return true;
+        }
       }
+    } catch (e) {
+      attempts++;
+      console.warn(`[API] ⏳ Smart Engine attempt ${attempts} failed. Retrying...`);
+      if (attempts < maxAttempts) await new Promise(r => setTimeout(r, 2000 * attempts));
     }
-  } catch(e) { console.warn('[API] ⚠️ Smart Engine connection failed.'); }
+  }
+  console.warn('[API] ⚠️ Smart Engine connection failed after retries.');
+  return false;
 }
 
 async function fetchMarketData() {
