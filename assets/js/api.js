@@ -334,6 +334,11 @@ const Utils = {
   clsName: (v) => v > 0 ? 'up' : v < 0 ? 'dn' : 'neu',
   arrow:   (v) => v > 0 ? '▲' : v < 0 ? '▼' : '●',
   scoreClass: (s) => s >= 70 ? 'high' : s >= 40 ? 'mid' : 'low',
+  brokerName: (id) => DEMO_BROKERS[id] || `Broker ${id}`,
+  getNPTTime: () => {
+    const now = new Date();
+    return new Date(now.getTime() + now.getTimezoneOffset() * 60000 + 5.75 * 3600000);
+  },
   safeScore: (s) => { const n = parseFloat(s); return isNaN(n) || !isFinite(n) ? 50 : Math.min(100, Math.max(0, Math.round(n))); },
 };
 
