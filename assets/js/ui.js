@@ -231,12 +231,17 @@ function showStockModal(symbol) {
   const brokerBuyers  = acc ? acc.topBuyers.map(id => Toast.brokerName(id)).join(', ') : '—';
   const brokerSellers = acc ? acc.topSellers.map(id => Toast.brokerName(id)).join(', ') : '—';
 
+  // AI Intelligence Logic
+  const finalSignal = stock.backendSignal ? stock.backendSignal.signal : sig.signal;
+  const finalReason = stock.backendSignal ? stock.backendSignal.reason : sig.reason;
+  const finalScore  = stock.backendSignal ? stock.backendSignal.score : sig.score;
+
   document.getElementById('smd-content').innerHTML = `
     <div class="modal-header">
       <div>
         <div class="modal-title">${stock.symbol} <span style="color:var(--text2);font-weight:400;font-size:14px">· ${stock.name}</span></div>
         <div style="margin-top:4px;display:flex;gap:8px;align-items:center">
-          ${signalBadge(sig.signal)}
+          ${signalBadge(finalSignal)}
           <span class="chip">${stock.sector}</span>
           ${acc ? `<span class="live-badge">TRACKING</span>` : ''}
         </div>
@@ -258,14 +263,17 @@ function showStockModal(symbol) {
       </div>
     </div>
 
-    <!-- Signal Section -->
-    <div style="background:${sig.signal==='BUY'?'var(--green-bg)':sig.signal==='SELL'?'var(--red-bg)':'var(--surface2)'};border:1px solid ${sig.signal==='BUY'?'rgba(16,185,129,.3)':sig.signal==='SELL'?'rgba(239,68,68,.3)':'var(--border)'};border-radius:var(--r-lg);padding:14px;margin-bottom:16px">
-      <div style="font-weight:600;margin-bottom:6px">📊 AI Signal: ${sig.signal} (${sig.strength})</div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:8px">${sig.reason}</div>
-      <div style="display:flex;gap:16px;font-size:12px;flex-wrap:wrap">
-        <div><span style="color:var(--text3)">Entry Zone: </span><strong>${sig.zone}</strong></div>
-        ${sig.target ? `<div><span style="color:var(--text3)">Target: </span><strong class="up">${sig.target}</strong></div>` : ''}
-        ${sig.stopLoss ? `<div><span style="color:var(--text3)">Stop Loss: </span><strong class="dn">${sig.stopLoss}</strong></div>` : ''}
+    <!-- AI Intelligence Section -->
+    <div style="background:${finalSignal==='BUY'?'var(--green-bg)':finalSignal==='SELL'?'var(--red-bg)':'var(--surface2)'};border:1px solid ${finalSignal==='BUY'?'rgba(16,185,129,.3)':finalSignal==='SELL'?'rgba(239,68,68,.3)':'var(--border)'};border-radius:var(--r-lg);padding:14px;margin-bottom:16px">
+      <div style="font-weight:600;margin-bottom:6px;display:flex;justify-content:space-between">
+        <span>📊 AI Intelligence</span>
+        <span style="font-size:11px;opacity:0.8">Score: ${finalScore}/100</span>
+      </div>
+      <div style="font-size:13px;line-height:1.5;color:var(--text2);margin-bottom:10px">${finalReason}</div>
+      <div style="display:flex;gap:16px;font-size:11px;color:var(--text3)">
+        <div>Entry Zone: <strong style="color:var(--text)">${sig.zone}</strong></div>
+        ${sig.target ? `<div>Target: <strong class="up">${sig.target}</strong></div>` : ''}
+        ${sig.stopLoss ? `<div>Stop Loss: <strong class="dn">${sig.stopLoss}</strong></div>` : ''}
       </div>
     </div>
 
