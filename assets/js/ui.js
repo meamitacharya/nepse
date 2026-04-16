@@ -11,6 +11,20 @@
 const Toast = {
   container: null,
 
+  // Fallback helpers to prevent crashes if API is still loading
+  getNPTTime() {
+    const now = new Date();
+    return new Date(now.getTime() + now.getTimezoneOffset() * 60000 + 5.75 * 3600000);
+  },
+  brokerName(id) {
+    if (window.API && window.API.DEMO_BROKERS) return window.API.DEMO_BROKERS[id] || `Broker ${id}`;
+    return `Broker ${id}`;
+  },
+  fmt(v, d=2) {
+    if (window.API && window.API.Utils) return window.API.Utils.fmt(v, d);
+    return (v == null || isNaN(v)) ? '—' : parseFloat(v).toFixed(d);
+  },
+
   init() {
     if (!document.getElementById('toast-container')) {
       this.container = document.createElement('div');
@@ -154,9 +168,9 @@ function updateTicker(stocks) {
   const items = [...top, ...top].map(s => `
     <div class="ticker-item">
       <span class="ticker-sym">${s.symbol}</span>
-      <span class="ticker-price">${API.Utils.fmt(s.ltp)}</span>
-      <span class="ticker-chg ${API.Utils.clsName(s.chg)}">
-        ${s.chg >= 0 ? '+' : ''}${API.Utils.fmt(s.chg)} (${s.chg >= 0 ? '+' : ''}${API.Utils.fmt(s.chgPct)}%)
+      <span class="ticker-price">${Toast.fmt(s.ltp)}</span>
+      <span class="ticker-chg ${window.API && window.API.Utils ? API.Utils.clsName(s.chg) : 'neu'}">
+        ${s.chg >= 0 ? '+' : ''}${Toast.fmt(s.chg)} (${s.chg >= 0 ? '+' : ''}${Toast.fmt(s.chgPct)}%)
       </span>
     </div>
   `).join('');
@@ -169,7 +183,7 @@ function updateTicker(stocks) {
 function updateTimestamp() {
   const el = document.getElementById('last-updated');
   if (!el) return;
-  const npt = API.Utils.getNPTTime();
+  const npt = Toast.getNPTTime();
   el.textContent = `Updated ${npt.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })} NPT`;
 }
 
@@ -213,9 +227,9 @@ function showStockModal(symbol) {
     document.body.appendChild(modal);
   }
 
-  const chgCls = API.Utils.clsName(stock.chg);
-  const brokerBuyers  = acc ? acc.topBuyers.map(id => API.Utils.brokerName(id)).join(', ') : '—';
-  const brokerSellers = acc ? acc.topSellers.map(id => API.Utils.brokerName(id)).join(', ') : '—';
+  const chgCls = window.API && window.API.Utils ? API.Utils.clsName(stock.chg) : 'neu';
+  const brokerBuyers  = acc ? acc.topBuyers.map(id => Toast.brokerName(id)).join(', ') : '—';
+  const brokerSellers = acc ? acc.topSellers.map(id => Toast.brokerName(id)).join(', ') : '—';
 
   document.getElementById('smd-content').innerHTML = `
     <div class="modal-header">
