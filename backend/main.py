@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import models
 from database import engine, get_db
-from scraper import fetch_and_save_data, backfill_all_stocks
+from scraper import fetch_and_save_data, backfill_all_stocks, update_all_signals
 
 # Create the database tables
 models.Base.metadata.create_all(bind=engine)
@@ -33,6 +33,18 @@ def trigger_backfill(limit: int = 50, db: Session = Depends(get_db)):
     try:
         backfill_all_stocks(limit=limit)
         return {"status": "success", "message": f"Backfill for {limit} stocks completed."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/admin/recalculate")
+def trigger_recalculate(db: Session = Depends(get_db)):
+    """
+    Manually triggers the technical analysis engine to recalculate 
+    all RSI, MACD, and EMA signals for the dashboard.
+    """
+    try:
+        update_all_signals(db)
+        return {"status": "success", "message": "Signal recalculation completed."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
