@@ -29,3 +29,17 @@ class DailyFloorsheet(Base):
     net_units = Column(Integer)
     # If net_units > 0, broker bought more than sold
     # If net_units < 0, broker sold more than bought
+
+class SignalCache(Base):
+    __tablename__ = "signal_cache"
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String, unique=True, index=True)
+    score = Column(Integer)
+    signal = Column(String)
+    reason = Column(String)
+    rsi = Column(Float)
+    macd = Column(Float)
+    ema_20 = Column(Float)
+    ema_50 = Column(Float)
+    accumulation_score = Column(Integer)
+    last_updated = Column(Date, index=True)

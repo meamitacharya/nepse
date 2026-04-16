@@ -105,53 +105,39 @@ def get_stock_analysis(symbol: str, db: Session = Depends(get_db)):
 @app.get("/api/signals/latest")
 def get_latest_signals(db: Session = Depends(get_db)):
     """
-    Returns the calculated Buy/Sell signals using real technical analysis.
+    Returns the pre-calculated signals from SignalCache.
+    Extremely fast (milliseconds), prevents server timeouts.
     """
-    stocks = db.query(models.Stock).all()
-    results = []
+    # 1. Fetch all cached signals
+    cached_signals = db.query(models.SignalCache).all()
     
-    for stock in stocks:
-        # 1. Fetch latest candle for current price
-        candle = db.query(models.DailyCandle).filter(models.DailyCandle.symbol == stock.symbol).order_by(models.DailyCandle.date.desc()).first()
-        if not candle: continue
-            
-        current_price = candle.close
-        
-        # 2. To keep the global list fast but REAL, we look for indicators
-        # In a full-scale app, we'd pre-calculate these into a 'signals' table.
-        # For this upgrade, we'll try to calculate them on the fly for top stocks.
-        
-        # Check if we have enough history for real logic
-        history_count = db.query(models.DailyCandle).filter(models.DailyCandle.symbol == stock.symbol).count()
-        
-        if history_count >= 20:
-            # REAL ANALYSIS
-            try:
-                analysis = get_stock_analysis(stock.symbol, db)
-                sig_res = analysis["recommendation"]
-                results.append({
-                    "symbol": stock.symbol,
-                    "name": stock.name,
-                    "score": sig_res["score"],
-                    "signal": sig_res["signal"],
-                    "reason": ", ".join(sig_res["reasons"][:2]) if sig_res["reasons"] else "Neutral trends",
-                    "ltp": current_price,
-                    "source": "SmartEngine_v2_Real"
-                })
-            except:
-                pass # Skip if analysis fails
-        else:
-            # FALLBACK MOCK (for stocks without enough history yet)
-            hash_val = sum(ord(c) * (i+1) for i, c in enumerate(stock.symbol))
-            signal_score = 45 + (hash_val % 41)
-            results.append({
-                "symbol": stock.symbol,
-                "name": stock.name,
-                "score": signal_score,
-                "signal": "HOLD",
-                "reason": "Waiting for history...",
-                "ltp": current_price,
-                "source": "SmartEngine_v1_Pending"
-            })
+    if not cached_signals:
+        # Fallback: If cache is empty, return a very basic list so the UI doesn't crash
+        stocks = db.query(models.Stock).limit(50).all()
+        results = [{
+            "symbol": s.symbol,
+            "name": s.name,
+            "score": 50,
+            "signal": "HOLD",
+            "reason": "Engine warming up. Run backfill.",
+            "source": "SmartEngine_v3_Init"
+        } for s in stocks]
+        return {"data": results}
+
+    results = []
+    for sig in cached_signals:
+        # Get last price for the UI
+        candle = db.query(models.DailyCandle).filter(models.DailyCandle.symbol == sig.symbol).order_by(models.DailyCandle.date.desc()).first()
+        results.append({
+            "symbol": sig.symbol,
+            "score": sig.score,
+            "signal": sig.signal,
+            "reason": sig.reason,
+            "ltp": candle.close if candle else 0,
+            "rsi": sig.rsi,
+            "accumulation_score": sig.accumulation_score,
+            "last_updated": str(sig.last_updated),
+            "source": "SmartEngine_v3_Rapid"
+        })
         
     return {"data": results}

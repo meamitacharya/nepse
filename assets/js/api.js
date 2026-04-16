@@ -458,24 +458,6 @@ async function fetchMarketData() {
 
     fetchFloorsheetBackground(liveBase);
     
-    // ── FETCH CUSTOM SIGNALS FROM LOCAL BACKEND ──
-    try {
-      const sigRes = await fetch(`${localBase}/signals/latest`, { signal: AbortSignal.timeout(5000) });
-        if (sigRes.ok) {
-          const sigData = await sigRes.json();
-          const results = sigData.data || [];
-          
-          if (results.length === 0) {
-             console.warn('[API] ⚠️ Local backend connected but returned NO SIGNS. (Is the database empty?)');
-          } else {
-             // Merge signals into our stock objects directly
-             results.forEach(sig => {
-                const stock = NEPSE.stocks.find(s => s.symbol === sig.symbol);
-                if (stock) {
-                  stock.backendSignal = sig;
-                }
-                
-                // Also merge into brokerData for compatibility with signals.html and broker.html
                 let bData = NEPSE.brokerData.find(b => b.symbol === sig.symbol);
                 if (!bData) {
                   bData = { symbol: sig.symbol, score: sig.score, trend: 'neutral', topBuyers: [], topSellers: [], netUnits: 0, days: 1, signal: sig.signal };
@@ -502,6 +484,39 @@ async function fetchMarketData() {
     console.warn('[API] fetch error:', err.message);
     if (NEPSE.stocks.length > 0) Bus.emit('data:updated', NEPSE);
     Bus.emit('data:error', err);
+  }
+}
+async function fetchSmartSignals(localBase) {
+  if (!localBase) return;
+  try {
+    console.info('[API] 📡 Requesting Smart Signals from Python Engine...');
+    const sigRes = await fetch(`${localBase}/signals/latest`, { signal: AbortSignal.timeout(10000) });
+    if (sigRes.ok) {
+      const sigData = await sigRes.json();
+      const results = sigData.data || [];
+      
+      if (results.length === 0) {
+         console.warn('[API] ⚠️ Python engine returned 0 signals.');
+      } else {
+         results.forEach(sig => {
+            const stock = NEPSE.stocks.find(s => s.symbol === sig.symbol);
+            if (stock) stock.backendSignal = sig;
+            
+            let bData = NEPSE.brokerData.find(b => b.symbol === sig.symbol);
+            if (!bData) {
+              bData = { symbol: sig.symbol, score: sig.score, trend: 'neutral', topBuyers: [], topSellers: [], netUnits: 0, days: 1, signal: sig.signal };
+              NEPSE.brokerData.push(bData);
+            } else {
+              bData.score = sig.score;
+              bData.signal = sig.signal;
+            }
+         });
+         console.info(`[API] 🧠 Smart Engine v3: Loaded ${results.length} signals.`);
+         Bus.emit('data:updated', NEPSE);
+      }
+    }
+  } catch(e) {
+    console.warn('[API] ⚠️ Smart Engine connection failed. Using simple logic.');
   }
 }
 
@@ -637,18 +652,22 @@ function checkAlerts() {
 
 // ── INIT ────────────────────────────────────────────────────────
 async function initAPI() {
-  // Use cached data immediately if fresh — no loading spinner for user
+  const localBase = CONFIG.LOCAL_BACKEND || 'https://meamitacharya-nepse-smart-backend.hf.space/api';
+  
+  // 1. Fetch Smart Signals immediately (High priority, small data)
+  fetchSmartSignals(localBase);
+
+  // 2. Load market data from cache or network
   if (loadCache()) {
     Bus.emit('data:updated', NEPSE);
     checkAlerts();
-    // Still refresh in background if cache is older than 2 minutes
+    
+    // Background refresh if cache is older than 2 mins
     const raw = localStorage.getItem(CACHE_KEY);
     const cacheAge = raw ? Date.now() - JSON.parse(raw).ts : Infinity;
-    if (cacheAge > 2 * 60 * 1000) {
-      fetchMarketData(); // background refresh, non-blocking
-    }
+    if (cacheAge > 120000) fetchMarketData();
   } else {
-    await fetchMarketData(); // no cache — must wait
+    await fetchMarketData();
   }
   Bus.on('data:updated', checkAlerts);
   setInterval(fetchMarketData, CONFIG.DEMO_MODE ? 15000 : CONFIG.REFRESH_MS);

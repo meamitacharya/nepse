@@ -4,6 +4,8 @@ from datetime import date
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 import models
+from analysis import calculate_technical_indicators, analyze_broker_accumulation, generate_buy_sell_signal
+import pandas as pd
 
 # Ensure tables are created
 models.Base.metadata.create_all(bind=engine)
@@ -150,10 +152,91 @@ def fetch_and_save_data():
         else:
             print(f"Failed to fetch Floorsheet: {floorsheet_resp.status_code}")
 
+        # 3. AUTO-UPDATE SIGNALS (PRE-CALCULATION)
+        print("Pre-calculating signals for dashboard...")
+        update_all_signals(db)
+
     except Exception as e:
         print(f"Error during scraping: {str(e)}")
     finally:
         db.close()
+
+def update_all_signals(db: Session = None):
+    """
+    Analyzes every stock in the DB and caches its BUY/SELL/HOLD signal in signal_cache.
+    This makes the frontend signals load instantly.
+    """
+    own_db = False
+    if db is None:
+        db = SessionLocal()
+        own_db = True
+    
+    try:
+        stocks = db.query(models.Stock).all()
+        print(f"Updating signals for {len(stocks)} stocks...")
+        
+        for stock in stocks:
+            symbol = stock.symbol
+            # 1. Fetch OHLC history (last 50 days)
+            candles = db.query(models.DailyCandle).filter(models.DailyCandle.symbol == symbol).order_by(models.DailyCandle.date).all()
+            if len(candles) < 2: continue # Need at least some data
+
+            # Convert to DataFrame for technical-analysis library
+            df = pd.DataFrame([{
+                "date": c.date, "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume
+            } for c in candles])
+            
+            # 2. Calculate Indicators
+            df_analyzed = calculate_technical_indicators(df)
+            latest_indicators = {}
+            current_price = df.iloc[-1]["close"]
+            
+            if len(df_analyzed) >= 14: # Basic RSI needs 14
+                latest_row = df_analyzed.iloc[-1]
+                latest_indicators = {
+                    "rsi": float(latest_row.get("rsi", 0)),
+                    "macd_histogram": float(latest_row.get("macd_histogram", 0)),
+                    "ema_20": float(latest_row.get("ema_20", 0)),
+                    "ema_50": float(latest_row.get("ema_50", 0))
+                }
+
+            # 3. Fetch Floorsheet history
+            floorsheets = db.query(models.DailyFloorsheet).filter(models.DailyFloorsheet.symbol == symbol).all()
+            accumulation_score = 0
+            broker_data = {"top_buyers": [], "top_sellers": [], "score": 0}
+            
+            if floorsheets:
+                fs_df = pd.DataFrame([{
+                    "date": f.date, "broker_id": f.broker_id, "net_units": f.net_units
+                } for f in floorsheets])
+                broker_data = analyze_broker_accumulation(fs_df)
+                accumulation_score = broker_data.get("score", 0)
+            
+            # 4. Generate Signal
+            signal_res = generate_buy_sell_signal(current_price, latest_indicators, broker_data)
+            
+            # 5. Save to Cache
+            cache = db.query(models.SignalCache).filter(models.SignalCache.symbol == symbol).first()
+            if not cache:
+                cache = models.SignalCache(symbol=symbol)
+                db.add(cache)
+            
+            cache.score = signal_res["score"]
+            cache.signal = signal_res["signal"]
+            cache.reason = signal_res["reason"]
+            cache.rsi = latest_indicators.get("rsi")
+            cache.macd = latest_indicators.get("macd_histogram")
+            cache.ema_20 = latest_indicators.get("ema_20")
+            cache.ema_50 = latest_indicators.get("ema_50")
+            cache.accumulation_score = accumulation_score
+            cache.last_updated = date.today()
+            
+        db.commit()
+        print("Signal cache updated successfully.")
+    except Exception as e:
+        print(f"Error updating signals: {str(e)}")
+    finally:
+        if own_db: db.close()
 
 def backfill_history(symbol, days=50):
     """
@@ -194,7 +277,42 @@ def backfill_history(symbol, days=50):
                     count += 1
             
             db.commit()
-            print(f"Saved {count} historical records for {symbol}.")
+            print(f"Saved {count} historical candles for {symbol}.")
+
+            # --- NEW: Also try to backfill Floorsheet History ---
+            print(f"Fetching Floorsheet History for {symbol}...")
+            fs_resp = requests.get(f"{API_BASE_URL}/FloorsheetOf", params={"symbol": symbol})
+            if fs_resp.status_code == 200:
+                fs_data = fs_resp.json()
+                rows = fs_data if isinstance(fs_data, list) else fs_data.get("floorSheetData", [])
+                
+                # Dictionary to aggregate net units per broker for THIS stock
+                acc = {}
+                for row in rows:
+                    qty = int(row.get("contractQuantity", row.get("quantity", 0)))
+                    buyer = int(row.get("buyerMemberId", row.get("buyBrokerId", 0)))
+                    seller = int(row.get("sellerMemberId", row.get("sellBrokerId", 0)))
+                    row_date = row.get("date") or str(date.today())
+                    
+                    if row_date not in acc: acc[row_date] = {}
+                    if buyer: acc[row_date][buyer] = acc[row_date].get(buyer, 0) + qty
+                    if seller: acc[row_date][seller] = acc[row_date].get(seller, 0) - qty
+
+                # Save historical floorsheets
+                fs_count = 0
+                for d, brokers in acc.items():
+                    for bid, units in brokers.items():
+                        existing = db.query(models.DailyFloorsheet).filter(
+                            models.DailyFloorsheet.symbol == symbol,
+                            models.DailyFloorsheet.date == d,
+                            models.DailyFloorsheet.broker_id == bid
+                        ).first()
+                        if not existing:
+                            db.add(models.DailyFloorsheet(symbol=symbol, date=d, broker_id=bid, net_units=units))
+                            fs_count += 1
+                db.commit()
+                print(f"Saved {fs_count} historical floorsheet records for {symbol}.")
+
         else:
             print(f"History API failed for {symbol}: {resp.status_code}")
     except Exception as e:
@@ -213,6 +331,8 @@ def backfill_all_stocks(limit=100):
         for stock in stocks:
             backfill_history(stock.symbol)
     finally:
+        print("Batch backfill complete. Updating signal cache...")
+        update_all_signals(db)
         db.close()
 
 if __name__ == "__main__":
