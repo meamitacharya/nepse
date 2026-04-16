@@ -24,7 +24,7 @@ jobs:
           # Deploy ONLY the backend folder to HF Space root
           # This ensures the Dockerfile in backend/ is at the root of the Space
           cd backend
-          git init
+          git init -b main
           git add .
           git commit -m "Sync from GitHub: ${{ github.sha }}"
           
