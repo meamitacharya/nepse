@@ -41,30 +41,29 @@ def analyze_broker_accumulation(floorsheet_df: pd.DataFrame, days: int = 10):
             "top_buyers": [], "top_sellers": [], "net_units": 0, "days": 0
         }
     
-    # Sort by date
-    floorsheet_df = floorsheet_df.sort_values(by="date")
-    
-    # Get total net units
+    # Group by broker
     grouped = floorsheet_df.groupby('broker_id')['net_units'].sum()
-    net_units = int(grouped.sum())
     
     # Identify top players
-    top_buyers = grouped[grouped > 0].sort_values(ascending=False).head(5).index.tolist()
+    top_buyers_series = grouped[grouped > 0].sort_values(ascending=False).head(5)
+    net_units = int(top_buyers_series.sum())
+    
+    top_buyers = top_buyers_series.index.tolist()
     top_sellers = grouped[grouped < 0].sort_values().head(5).index.tolist()
     
     # Calculate simple score 0-100
     # 50 is neutral. >50 is accumulation, <50 is distribution.
     score = 50
     if net_units > 0:
-        score = min(100, 50 + int(net_units / 5000)) # Simple scaling
+        score = min(100, 50 + int(net_units / 1000)) # Lowered from 5000 for better sensitivity
     else:
-        score = max(0, 50 + int(net_units / 5000))
+        score = max(0, 50 + int(net_units / 1000))
         
     # Determine trend and signal
     trend = "neutral"
     signal = "NEUTRAL"
     
-    if score >= 80:
+    if score >= 75: # Lowered from 80
         trend = "heavy_accum"
         signal = "BURST_SOON"
     elif score >= 60:

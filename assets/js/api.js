@@ -207,7 +207,7 @@ const API = {
   },
 
   detectBurstCandidates() {
-    return NEPSE.brokerData.filter(b => b.score >= 80).map(b => ({
+    return NEPSE.brokerData.filter(b => b.score >= 75).map(b => ({
       ...b,
       stock: NEPSE.stocks.find(s => s.symbol === b.symbol),
       confidence: b.score >= 90 ? 'HIGH' : 'MEDIUM'

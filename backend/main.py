@@ -10,6 +10,21 @@ app = FastAPI()
 
 from scraper import fetch_and_save_data, backfill_all_stocks, update_all_signals, sync_company_details
 
+@app.get("/api/admin/migrate-db")
+def migrate_db(db: Session = Depends(get_db)):
+    """Manually adds missing columns for company details to Supabase."""
+    try:
+        from sqlalchemy import text
+        db.execute(text("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS security_name VARCHAR"))
+        db.execute(text("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS website VARCHAR"))
+        db.execute(text("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS email VARCHAR"))
+        db.execute(text("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS instrument_type VARCHAR"))
+        db.execute(text("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS nepse_id INTEGER"))
+        db.commit()
+        return {"status": "success", "message": "Database migration completed."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.get("/api/admin/sync-companies")
 def trigger_sync_companies():
     """Syncs full company details (website, email, etc.) from NEPSE."""
@@ -34,8 +49,6 @@ def get_stock_details(symbol: str, db: Session = Depends(get_db)):
 
 # Create the database tables
 models.Base.metadata.create_all(bind=engine)
-
-app = FastAPI(title="NEPSE Smart Backend Engine")
 
 # Administrative: Manual Scrape Trigger
 @app.get("/api/admin/scrape")
