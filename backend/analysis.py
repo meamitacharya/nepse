@@ -134,13 +134,13 @@ def generate_buy_sell_signal(current_price: float, indicators: dict, broker_data
 
     # 1. Price Momentum (Today)
     chg_pct = stock_data.get("chgPct", 0)
-    if chg_pct > 3:
+    if chg_pct > 2.5:
         score += 15
         reasons.append(f"Strong momentum (+{chg_pct:.1f}%)")
-    elif chg_pct > 1.5:
-        score += 7
+    elif chg_pct > 0.5:
+        score += 10
         reasons.append("Positive price action")
-    elif chg_pct < -3:
+    elif chg_pct < -2.5:
         score -= 15
         reasons.append(f"Sharp decline (-{abs(chg_pct):.1f}%)")
 
@@ -173,9 +173,9 @@ def generate_buy_sell_signal(current_price: float, indicators: dict, broker_data
     score = max(0, min(100, score)) # Clamp between 0 and 100
     
     signal = "HOLD"
-    if score >= 65: signal = "BUY"
+    if score >= 60: signal = "BUY"
     elif score >= 80: signal = "STRONG BUY"
-    elif score <= 35: signal = "SELL"
+    elif score <= 40: signal = "SELL"
     elif score <= 20: signal = "STRONG SELL"
     
     return {

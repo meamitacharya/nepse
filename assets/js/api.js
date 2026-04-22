@@ -85,9 +85,17 @@ const API = {
         const idx = await idxRes.value.json();
         const main = idx['NEPSE Index'] || {};
         NEPSE.indices.nepse = { value: parseFloat(main.currentValue)||0, change: parseFloat(main.change)||0, pct: parseFloat(main.perChange)||0 };
-        NEPSE.indices.advances = parseInt(idx.advances || 0);
-        NEPSE.indices.declines = parseInt(idx.declines || 0);
-        NEPSE.indices.unchanged = parseInt(idx.unchanged || 0);
+        
+        // Try to get breadth from API, else calculate from stocks
+        if (idx.advances !== undefined) {
+          NEPSE.indices.advances = parseInt(idx.advances || 0);
+          NEPSE.indices.declines = parseInt(idx.declines || 0);
+          NEPSE.indices.unchanged = parseInt(idx.unchanged || 0);
+        } else if (NEPSE.stocks.length > 0) {
+          NEPSE.indices.advances = NEPSE.stocks.filter(s => s.chg > 0).length;
+          NEPSE.indices.declines = NEPSE.stocks.filter(s => s.chg < 0).length;
+          NEPSE.indices.unchanged = NEPSE.stocks.filter(s => s.chg === 0).length;
+        }
       }
 
       if (summaryRes.status === 'fulfilled' && summaryRes.value.ok) {
