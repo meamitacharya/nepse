@@ -5,7 +5,32 @@ from fastapi.middleware.cors import CORSMiddleware
 import models
 from database import engine, get_db, DATABASE_URL
 print(f"DATABASE_URL: {DATABASE_URL}")
-from scraper import fetch_and_save_data, backfill_all_stocks, update_all_signals
+
+app = FastAPI()
+
+from scraper import fetch_and_save_data, backfill_all_stocks, update_all_signals, sync_company_details
+
+@app.get("/api/admin/sync-companies")
+def trigger_sync_companies():
+    """Syncs full company details (website, email, etc.) from NEPSE."""
+    sync_company_details()
+    return {"status": "success", "message": "Company details sync completed."}
+
+@app.get("/api/stock/{symbol}/details")
+def get_stock_details(symbol: str, db: Session = Depends(get_db)):
+    stock = db.query(models.Stock).filter(models.Stock.symbol == symbol).first()
+    if not stock:
+        raise HTTPException(status_code=404, detail="Stock not found")
+    return {
+        "symbol": stock.symbol,
+        "name": stock.name,
+        "security_name": stock.security_name,
+        "sector": stock.sector,
+        "website": stock.website,
+        "email": stock.email,
+        "instrument_type": stock.instrument_type,
+        "nepse_id": stock.nepse_id
+    }
 
 # Create the database tables
 models.Base.metadata.create_all(bind=engine)

@@ -360,5 +360,39 @@ def backfill_all_stocks(limit=100):
         update_all_signals(db)
         db.close()
 
+def sync_company_details():
+    db = SessionLocal()
+    try:
+        print("--- Syncing Company Details from NEPSE ---")
+        resp = requests.get(f"{API_BASE_URL}/CompanyList")
+        if resp.status_code != 200:
+            print(f"Failed to fetch CompanyList: {resp.status_code}")
+            return
+            
+        companies = resp.json()
+        for c in companies:
+            symbol = c.get("symbol")
+            if not symbol: continue
+            
+            stock = db.query(models.Stock).filter(models.Stock.symbol == symbol).first()
+            if not stock:
+                stock = models.Stock(symbol=symbol)
+                db.add(stock)
+            
+            stock.name = c.get("companyName", stock.name)
+            stock.security_name = c.get("securityName")
+            stock.sector = c.get("sectorName", stock.sector)
+            stock.website = c.get("website")
+            stock.email = c.get("companyEmail")
+            stock.instrument_type = c.get("instrumentType")
+            stock.nepse_id = c.get("id")
+            
+        db.commit()
+        print(f"Successfully synced {len(companies)} company details.")
+    except Exception as e:
+        print(f"Error syncing company details: {str(e)}")
+    finally:
+        db.close()
+
 if __name__ == "__main__":
     fetch_and_save_data()

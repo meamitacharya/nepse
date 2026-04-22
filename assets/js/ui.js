@@ -236,11 +236,38 @@ function showStockModal(symbol) {
   const finalReason = stock.backendSignal ? stock.backendSignal.reason : sig.reason;
   const finalScore  = stock.backendSignal ? stock.backendSignal.score : sig.score;
 
+  // Fetch company details in background if not already there
+  if (!stock.fullDetails) {
+    fetch(`${API.CONFIG.PROD_BACKEND}/stock/${symbol}/details`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.symbol) {
+          stock.fullDetails = data;
+          // Partial re-render of just the header info if modal is still open
+          const headerEl = document.getElementById('smd-header-extra');
+          if (headerEl) {
+            headerEl.innerHTML = `
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">
+                ${data.security_name || ''} · ${data.instrument_type || 'Equity'}
+              </div>
+              ${data.website ? `<a href="${data.website.startsWith('http')?data.website:'http://'+data.website}" target="_blank" class="link" style="font-size:11px;margin-top:4px;display:inline-block">🌐 Visit Website</a>` : ''}
+            `;
+          }
+        }
+      }).catch(e => console.log("Details fetch fail", e));
+  }
+
   document.getElementById('smd-content').innerHTML = `
     <div class="modal-header">
       <div>
         <div class="modal-title">${stock.symbol} <span style="color:var(--text2);font-weight:400;font-size:14px">· ${stock.name}</span></div>
-        <div style="margin-top:4px;display:flex;gap:8px;align-items:center">
+        <div id="smd-header-extra">
+          ${stock.fullDetails ? `
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">${stock.fullDetails.security_name} · ${stock.fullDetails.instrument_type}</div>
+            ${stock.fullDetails.website ? `<a href="${stock.fullDetails.website.startsWith('http')?stock.fullDetails.website:'http://'+stock.fullDetails.website}" target="_blank" class="link" style="font-size:11px;margin-top:4px;display:inline-block">🌐 Visit Website</a>` : ''}
+          ` : '<div style="font-size:10px;color:var(--text3)">Loading company details...</div>'}
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
           ${signalBadge(finalSignal)}
           <span class="chip">${stock.sector}</span>
           ${acc ? `<span class="live-badge">TRACKING</span>` : ''}

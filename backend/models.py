@@ -7,6 +7,11 @@ class Stock(Base):
     symbol = Column(String, unique=True, index=True)
     name = Column(String)
     sector = Column(String)
+    security_name = Column(String)
+    website = Column(String)
+    email = Column(String)
+    instrument_type = Column(String)
+    nepse_id = Column(Integer)
 
 class DailyCandle(Base):
     __tablename__ = "daily_candles"
