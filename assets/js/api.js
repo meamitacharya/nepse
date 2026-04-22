@@ -161,7 +161,7 @@ const API = {
   saveAlerts()    { localStorage.setItem('ns_alerts',    JSON.stringify(NEPSE.alerts));    this.Bus.emit('data:updated', NEPSE); },
 
   generateSignal(stock, acc) {
-    if (stock.backendSignal) {
+    if (stock.backendSignal && stock.backendSignal.signal !== 'HOLD' || (stock.backendSignal && stock.backendSignal.reason !== 'Analyzing market trends...')) {
       const b = stock.backendSignal;
       const isBullish = ['BUY', 'BURST_SOON', 'WATCH'].some(s => b.signal.includes(s));
       const isBearish = ['SELL', 'EXIT', 'CAUTION'].some(s => b.signal.includes(s));
@@ -179,7 +179,31 @@ const API = {
         zone: b.zone || zone
       };
     }
-    return { signal: 'HOLD', score: 50, strength: 'NEUTRAL', reason: 'Analyzing market trends...', zone: '—', target: '—', stopLoss: '—' };
+
+    // Fallback Frontend Logic
+    let score = 50;
+    let reasons = [];
+    
+    if (stock.chgPct > 2) { score += 10; reasons.push("Positive price momentum"); }
+    else if (stock.chgPct < -2) { score -= 10; reasons.push("Negative price action"); }
+    
+    if (acc && acc.score > 70) { score += 15; reasons.push("Significant broker accumulation"); }
+    else if (acc && acc.score < 30) { score -= 15; reasons.push("Broker distribution detected"); }
+    
+    if (reasons.length === 0) reasons.push("Market trend is currently neutral");
+
+    const signal = score >= 65 ? 'BUY' : (score <= 35 ? 'SELL' : 'HOLD');
+    const isBullish = signal === 'BUY';
+    
+    return { 
+      signal, 
+      score, 
+      strength: 'MODERATE', 
+      reason: reasons.join(', '), 
+      zone: isBullish ? `Rs. ${(stock.ltp*0.99).toFixed(1)}-${(stock.ltp*1.01).toFixed(1)}` : '—',
+      target: isBullish ? `Rs. ${(stock.ltp*1.10).toFixed(1)}` : '—', 
+      stopLoss: isBullish ? `Rs. ${(stock.ltp*0.96).toFixed(1)}` : '—' 
+    };
   },
 
   detectBurstCandidates() {
