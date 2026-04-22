@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 
 import models
-from database import engine, get_db
+from database import engine, get_db, DATABASE_URL
+print(f"DATABASE_URL: {DATABASE_URL}")
 from scraper import fetch_and_save_data, backfill_all_stocks, update_all_signals
 
 # Create the database tables

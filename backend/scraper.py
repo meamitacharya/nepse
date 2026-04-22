@@ -179,7 +179,7 @@ def update_all_signals(db: Session = None):
             symbol = stock.symbol
             # 1. Fetch OHLC history (last 50 days)
             candles = db.query(models.DailyCandle).filter(models.DailyCandle.symbol == symbol).order_by(models.DailyCandle.date).all()
-            if len(candles) < 2: continue # Need at least some data
+            if len(candles) < 1: continue # Need at least today's data
 
             # Convert to DataFrame for technical-analysis library
             df = pd.DataFrame([{
@@ -212,8 +212,32 @@ def update_all_signals(db: Session = None):
                 broker_data = analyze_broker_accumulation(fs_df)
                 accumulation_score = broker_data.get("score", 0)
             
-            # 4. Generate Signal
-            signal_res = generate_buy_sell_signal(current_price, latest_indicators, broker_data)
+            # 4. Market/Sector Context
+            stock_info = db.query(models.Stock).filter(models.Stock.symbol == symbol).first()
+            chg_pct = 0
+            if len(df) >= 2:
+                prev_close = df.iloc[-2]["close"]
+                if prev_close > 0:
+                    chg_pct = (current_price - prev_close) / prev_close * 100
+            
+            stock_data = {
+                "symbol": symbol,
+                "chgPct": chg_pct,
+                "sector": stock_info.sector if stock_info else "Unknown",
+                "vol_chg": 0,
+                "sector_avg": 0
+            }
+            
+            # Volume change (vs 10 day average)
+            if len(df) >= 10:
+                avg_vol = df.iloc[-10:-1]["volume"].mean()
+                if avg_vol > 0:
+                    stock_data["vol_chg"] = (df.iloc[-1]["volume"] - avg_vol) / avg_vol * 100
+
+            # 5. Generate Signal
+            if symbol == "NHPC": print("Generating signal for NHPC...")
+            signal_res = generate_buy_sell_signal(current_price, latest_indicators, broker_data, stock_data)
+            if symbol == "NHPC": print(f"NHPC Signal: {signal_res}")
             
             # 5. Save to Cache
             cache = db.query(models.SignalCache).filter(models.SignalCache.symbol == symbol).first()

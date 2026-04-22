@@ -92,7 +92,8 @@ def analyze_broker_accumulation(floorsheet_df: pd.DataFrame, days: int = 10):
         "days_to_break": 0 # Placeholder
     }
     
-def generate_buy_sell_signal(current_price: float, indicators: dict, broker_data: dict):
+def generate_buy_sell_signal(current_price: float, indicators: dict, broker_data: dict, stock_data: dict = None):
+    if stock_data is None: stock_data = {}
     """
     Generates a combined signal based on technicals and broker activity.
     """
@@ -132,22 +133,51 @@ def generate_buy_sell_signal(current_price: float, indicators: dict, broker_data
             score -= 15
             reasons.append("Strong downtrend (Price < EMA20 < EMA50)")
 
+    # 1. Price Momentum (Today)
+    chg_pct = stock_data.get("chgPct", 0)
+    if chg_pct > 3:
+        score += 15
+        reasons.append(f"Strong momentum (+{chg_pct:.1f}%)")
+    elif chg_pct > 1.5:
+        score += 7
+        reasons.append("Positive price action")
+    elif chg_pct < -3:
+        score -= 15
+        reasons.append(f"Sharp decline (-{abs(chg_pct):.1f}%)")
+
     # 4. Broker Accumulation Logic
-    net_activity = broker_data.get("net_units", 0)
-    if net_activity > 10000:
-        score += 20
-        reasons.append(f"Broker accumulation detected: {net_activity:+,d} units")
-    elif net_activity < -10000:
-        score -= 20
-        reasons.append(f"Broker distribution detected: {net_activity:+,d} units")
+    net_units = broker_data.get("net_units", 0)
+    top_buyers = broker_data.get("top_buyers", [])
+    if net_units > 5000: # Lowered threshold from 10000
+        score += 15
+        reasons.append(f"Broker accumulation (+{net_units} units)")
+        if top_buyers:
+            reasons.append(f"Smart money brokers: {', '.join(map(str, top_buyers[:2]))}")
+    elif net_units < -5000:
+        score -= 15
+        reasons.append(f"Institutional selling ({abs(net_units)} units)")
+
+    # 5. Volatility & Volume Check
+    vol_chg = stock_data.get("vol_chg", 0)
+    if vol_chg > 50:
+        score += 10
+        reasons.append(f"Volume breakout (+{vol_chg:.0f}% vs avg)")
+
+    # 6. Sector Context
+    sector_avg = stock_data.get("sector_avg", 0)
+    if stock_data.get("chgPct", 0) > sector_avg + 2:
+        reasons.append(f"Outperforming its sector ({stock_data.get('sector')})")
+
+    if not reasons:
+        reasons.append("Market trend is currently sideways/neutral")
         
     score = max(0, min(100, score)) # Clamp between 0 and 100
     
     signal = "HOLD"
-    if score >= 70: signal = "STRONG BUY"
-    elif score >= 60: signal = "BUY"
-    elif score <= 30: signal = "STRONG SELL"
-    elif score <= 40: signal = "SELL"
+    if score >= 65: signal = "BUY"
+    elif score >= 80: signal = "STRONG BUY"
+    elif score <= 35: signal = "SELL"
+    elif score <= 20: signal = "STRONG SELL"
     
     return {
         "score": score,
