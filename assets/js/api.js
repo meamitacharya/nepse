@@ -96,7 +96,10 @@ const API = {
       }
 
       NEPSE.lastUpdated = new Date();
-      await this.fetchSmartSignals();
+      await Promise.allSettled([
+        this.fetchSmartSignals(),
+        this.fetchBrokerData()
+      ]);
       this.saveCache();
       this.Bus.emit('data:updated', NEPSE);
     } catch (err) { console.warn('[API] Fetch Error:', err.message); }
@@ -124,6 +127,20 @@ const API = {
     console.warn('[API] ⚠️ Smart Engine connection failed.');
   },
 
+  async fetchBrokerData() {
+    const url = `${CONFIG.PROD_BACKEND}/broker/accumulation`;
+    console.info('[API] 🏦 Synchronizing Broker Tracker...');
+    
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      if (res.ok) {
+        const { data } = await res.json();
+        NEPSE.brokerData = data || [];
+        console.info(`[API] 📈 Broker Tracker: Loaded data for ${NEPSE.brokerData.length} stocks.`);
+      }
+    } catch (e) { console.warn('[API] Broker Tracker connection failed.'); }
+  },
+
   calcPortfolio() {
     return NEPSE.portfolio.map(p => {
       const stock = NEPSE.stocks.find(s => s.symbol === p.symbol);
@@ -144,30 +161,52 @@ const API = {
   saveAlerts()    { localStorage.setItem('ns_alerts',    JSON.stringify(NEPSE.alerts));    this.Bus.emit('data:updated', NEPSE); },
 
   generateSignal(stock, acc) {
-    if (stock.backendSignal) return { ...stock.backendSignal, zone: `Rs. ${(stock.ltp*0.98).toFixed(0)}-${(stock.ltp*1.02).toFixed(0)}` };
+    if (stock.backendSignal) {
+      const b = stock.backendSignal;
+      const strength = b.score >= 70 || b.score <= 30 ? 'STRONG' : (b.score >= 60 || b.score <= 40 ? 'MODERATE' : 'NEUTRAL');
+      const target = b.signal.includes('BUY') ? `Rs. ${(stock.ltp*1.15).toFixed(0)}` : '—';
+      const stopLoss = b.signal.includes('BUY') ? `Rs. ${(stock.ltp*0.95).toFixed(0)}` : '—';
+      return { 
+        ...b, 
+        strength: b.strength || strength,
+        target: b.target || target,
+        stopLoss: b.stopLoss || stopLoss,
+        zone: `Rs. ${(stock.ltp*0.98).toFixed(0)}-${(stock.ltp*1.02).toFixed(0)}` 
+      };
+    }
     const score = 50;
-    return { signal: 'HOLD', score, reason: 'Analyzing market trends...', zone: '—', target: '—', stopLoss: '—' };
+    return { signal: 'HOLD', score, strength: 'NEUTRAL', reason: 'Analyzing market trends...', zone: '—', target: '—', stopLoss: '—' };
   },
 
-  detectBurstCandidates(stocks) {
-    return stocks.filter(s => s.backendSignal && s.backendSignal.score >= 75).map(s => ({ 
-      ...s.backendSignal, symbol: s.symbol, stock: s, confidence: 'HIGH' 
+  detectBurstCandidates() {
+    return NEPSE.brokerData.filter(b => b.score >= 80).map(b => ({
+      ...b,
+      stock: NEPSE.stocks.find(s => s.symbol === b.symbol),
+      confidence: b.score >= 90 ? 'HIGH' : 'MEDIUM'
     })).sort((a,b) => b.score - a.score);
   },
 
-  detectCircuitCandidates(stocks) { return stocks.filter(s => Math.abs(s.chgPct) >= 8).slice(0, 10); },
+  detectCircuitCandidates(stocks) {
+    return stocks.filter(s => Math.abs(s.chgPct) >= 7.5).map(s => {
+      const limit = 10;
+      const direction = s.chgPct >= 0 ? 'upper' : 'lower';
+      const distToCircuit = Math.abs(limit - Math.abs(s.chgPct));
+      return { ...s, direction, distToCircuit };
+    }).sort((a,b) => a.distToCircuit - b.distToCircuit).slice(0, 10);
+  },
   
   analyzeSectorRotation(stocks) {
     const sectors = {};
     stocks.forEach(s => {
-      if (!sectors[s.sector]) sectors[s.sector] = { name:s.sector, stocks:0, totalChg:0, totalTo:0 };
+      if (!sectors[s.sector]) sectors[s.sector] = { name:s.sector, stocks:0, totalChg:0, totalTo:0, totalVol:0 };
       sectors[s.sector].stocks++;
       sectors[s.sector].totalChg += s.chgPct;
       sectors[s.sector].totalTo += s.to;
+      sectors[s.sector].totalVol += (s.vol || 0);
     });
     return Object.values(sectors).map(sec => ({
       ...sec, avgChg: sec.totalChg / sec.stocks,
-      momentum: (sec.totalChg / sec.stocks) > 1 ? 'HOT' : 'NEUTRAL'
+      momentum: (sec.totalChg / sec.stocks) > 1 ? 'HOT' : (sec.totalChg / sec.stocks) > 0 ? 'POSITIVE' : 'COLD'
     })).sort((a,b) => b.avgChg - a.avgChg);
   },
 

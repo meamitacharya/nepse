@@ -1,6 +1,6 @@
 import os
 import requests
-from datetime import date
+from datetime import date, datetime
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 import models
@@ -230,7 +230,7 @@ def update_all_signals(db: Session = None):
             cache.ema_20 = latest_indicators.get("ema_20")
             cache.ema_50 = latest_indicators.get("ema_50")
             cache.accumulation_score = accumulation_score
-            cache.updated_at = datetime.now()
+            cache.last_updated = datetime.now().date()
             
         db.commit()
         print("Signal cache updated successfully.")

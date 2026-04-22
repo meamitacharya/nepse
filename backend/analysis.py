@@ -33,31 +33,63 @@ def analyze_broker_accumulation(floorsheet_df: pd.DataFrame, days: int = 10):
     """
     Analyzes broker accumulation for a given stock.
     floorsheet_df expected columns: ['date', 'broker_id', 'net_units']
+    Returns a dictionary compatible with the frontend's NEPSE.brokerData.
     """
     if floorsheet_df.empty:
-        return {}
+        return {
+            "score": 50, "trend": "neutral", "signal": "NEUTRAL",
+            "top_buyers": [], "top_sellers": [], "net_units": 0, "days": 0
+        }
     
     # Sort by date
     floorsheet_df = floorsheet_df.sort_values(by="date")
     
-    # Filter to last 'days'
-    recent_df = floorsheet_df.tail(days * len(floorsheet_df.broker_id.unique())) # Approximation for recent activity
+    # Get total net units
+    grouped = floorsheet_df.groupby('broker_id')['net_units'].sum()
+    net_units = int(grouped.sum())
     
-    # Needs a more robust grouping by date and broker to genuinely find X days of contiguous buying
+    # Identify top players
+    top_buyers = grouped[grouped > 0].sort_values(ascending=False).head(5).index.tolist()
+    top_sellers = grouped[grouped < 0].sort_values().head(5).index.tolist()
     
-    broker_scores = {}
+    # Calculate simple score 0-100
+    # 50 is neutral. >50 is accumulation, <50 is distribution.
+    score = 50
+    if net_units > 0:
+        score = min(100, 50 + int(net_units / 5000)) # Simple scaling
+    else:
+        score = max(0, 50 + int(net_units / 5000))
+        
+    # Determine trend and signal
+    trend = "neutral"
+    signal = "NEUTRAL"
     
-    # Group by broker over the recent period
-    grouped = floorsheet_df.groupby('broker_id')['net_units'].agg(['sum', 'count'])
-    
-    # Simple scoring: total net units in the period
-    top_buyers = grouped[grouped['sum'] > 0].sort_values(by='sum', ascending=False).head(5)
-    top_sellers = grouped[grouped['sum'] < 0].sort_values(by='sum').head(5)
+    if score >= 80:
+        trend = "heavy_accum"
+        signal = "BURST_SOON"
+    elif score >= 60:
+        trend = "accumulating"
+        signal = "WATCH"
+    elif score <= 20:
+        trend = "distribution"
+        signal = "EXIT"
+    elif score <= 40:
+        trend = "distributing"
+        signal = "CAUTION"
+        
+    # Unique days of activity
+    active_days = floorsheet_df['date'].nunique()
     
     return {
-        "top_buyers": top_buyers.index.tolist(),
-        "top_sellers": top_sellers.index.tolist(),
-        "total_net_recent": grouped['sum'].sum()
+        "score": score,
+        "trend": trend,
+        "signal": signal,
+        "top_buyers": top_buyers,
+        "top_sellers": top_sellers,
+        "net_units": net_units,
+        "days": active_days,
+        "price_target": 0, # Placeholder
+        "days_to_break": 0 # Placeholder
     }
     
 def generate_buy_sell_signal(current_price: float, indicators: dict, broker_data: dict):
@@ -101,7 +133,7 @@ def generate_buy_sell_signal(current_price: float, indicators: dict, broker_data
             reasons.append("Strong downtrend (Price < EMA20 < EMA50)")
 
     # 4. Broker Accumulation Logic
-    net_activity = broker_data.get("total_net_recent", 0)
+    net_activity = broker_data.get("net_units", 0)
     if net_activity > 10000:
         score += 20
         reasons.append(f"Broker accumulation detected: {net_activity:+,d} units")

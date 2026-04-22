@@ -153,3 +153,26 @@ def get_latest_signals(db: Session = Depends(get_db)):
         })
         
     return {"data": results}
+
+@app.get("/api/broker/accumulation")
+def get_bulk_broker_accumulation(db: Session = Depends(get_db)):
+    """
+    Returns broker accumulation analysis for all stocks.
+    Used by the 'Broker Tracker' and 'Burst Predictor' in the frontend.
+    """
+    stocks = db.query(models.Stock).all()
+    results = []
+    
+    for s in stocks:
+        floorsheets = db.query(models.DailyFloorsheet).filter(models.DailyFloorsheet.symbol == s.symbol).all()
+        if not floorsheets: continue
+        
+        fs_df = pd.DataFrame([{
+            "date": f.date, "broker_id": f.broker_id, "net_units": f.net_units
+        } for f in floorsheets])
+        
+        analysis = analyze_broker_accumulation(fs_df)
+        analysis["symbol"] = s.symbol
+        results.append(analysis)
+        
+    return {"data": results}
