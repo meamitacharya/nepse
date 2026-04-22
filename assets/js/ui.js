@@ -269,7 +269,9 @@ function showStockModal(symbol) {
         <span>📊 AI Intelligence</span>
         <span style="font-size:11px;opacity:0.8">Score: ${finalScore}/100</span>
       </div>
-      <div style="font-size:13px;line-height:1.5;color:var(--text2);margin-bottom:10px">${finalReason}</div>
+      <div style="font-size:13px;line-height:1.6;color:var(--text2);margin-bottom:12px">
+        ${finalReason.split(', ').map(r => `<div style="display:flex;gap:6px;margin-bottom:4px"><span>•</span> <span>${r}</span></div>`).join('')}
+      </div>
       <div style="display:flex;gap:16px;font-size:11px;color:var(--text3)">
         <div>Entry Zone: <strong style="color:var(--text)">${sig.zone}</strong></div>
         ${sig.target ? `<div>Target: <strong class="up">${sig.target}</strong></div>` : ''}

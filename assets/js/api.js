@@ -163,19 +163,23 @@ const API = {
   generateSignal(stock, acc) {
     if (stock.backendSignal) {
       const b = stock.backendSignal;
-      const strength = b.score >= 70 || b.score <= 30 ? 'STRONG' : (b.score >= 60 || b.score <= 40 ? 'MODERATE' : 'NEUTRAL');
-      const target = b.signal.includes('BUY') ? `Rs. ${(stock.ltp*1.15).toFixed(0)}` : '—';
-      const stopLoss = b.signal.includes('BUY') ? `Rs. ${(stock.ltp*0.95).toFixed(0)}` : '—';
+      const isBullish = ['BUY', 'BURST_SOON', 'WATCH'].some(s => b.signal.includes(s));
+      const isBearish = ['SELL', 'EXIT', 'CAUTION'].some(s => b.signal.includes(s));
+      
+      const strength = b.score >= 80 || b.score <= 20 ? 'STRONG' : (b.score >= 60 || b.score <= 40 ? 'MODERATE' : 'NEUTRAL');
+      const target = isBullish ? `Rs. ${(stock.ltp*1.15).toFixed(1)}` : (isBearish ? `Rs. ${(stock.ltp*0.90).toFixed(1)}` : '—');
+      const stopLoss = isBullish ? `Rs. ${(stock.ltp*0.95).toFixed(1)}` : '—';
+      const zone = isBullish ? `Rs. ${(stock.ltp*0.98).toFixed(1)}-${(stock.ltp*1.02).toFixed(1)}` : '—';
+
       return { 
         ...b, 
         strength: b.strength || strength,
         target: b.target || target,
         stopLoss: b.stopLoss || stopLoss,
-        zone: `Rs. ${(stock.ltp*0.98).toFixed(0)}-${(stock.ltp*1.02).toFixed(0)}` 
+        zone: b.zone || zone
       };
     }
-    const score = 50;
-    return { signal: 'HOLD', score, strength: 'NEUTRAL', reason: 'Analyzing market trends...', zone: '—', target: '—', stopLoss: '—' };
+    return { signal: 'HOLD', score: 50, strength: 'NEUTRAL', reason: 'Analyzing market trends...', zone: '—', target: '—', stopLoss: '—' };
   },
 
   detectBurstCandidates() {
@@ -198,11 +202,14 @@ const API = {
   analyzeSectorRotation(stocks) {
     const sectors = {};
     stocks.forEach(s => {
-      if (!sectors[s.sector]) sectors[s.sector] = { name:s.sector, stocks:0, totalChg:0, totalTo:0, totalVol:0 };
+      if (!sectors[s.sector]) sectors[s.sector] = { name:s.sector, stocks:0, totalChg:0, totalTo:0, totalVol:0, advances:0, declines:0, unch:0 };
       sectors[s.sector].stocks++;
       sectors[s.sector].totalChg += s.chgPct;
       sectors[s.sector].totalTo += s.to;
       sectors[s.sector].totalVol += (s.vol || 0);
+      if (s.chg > 0) sectors[s.sector].advances++;
+      else if (s.chg < 0) sectors[s.sector].declines++;
+      else sectors[s.sector].unch++;
     });
     return Object.values(sectors).map(sec => ({
       ...sec, avgChg: sec.totalChg / sec.stocks,
